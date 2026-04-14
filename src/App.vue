@@ -5,6 +5,7 @@ import { useGithub } from "@/composables/useGithub";
 import { slaStatus } from "@/composables/useSla";
 import { useTheme } from "@/composables/useTheme";
 import { usePersistedRepos } from "@/composables/usePersistedRepos";
+import { usePersistedToken } from "@/composables/usePersistedToken";
 import type {
   PullRequest,
   ActivityMetrics,
@@ -29,15 +30,12 @@ useTheme();
 const COMMENT_FIRE_THRESHOLD = Number(
   import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10,
 );
-const ENV_TOKEN =
-  (import.meta.env.VITE_GITHUB_TOKEN as string | undefined) ?? "";
 
-// ── persisted repos ───────────────────────────────────────────────
+// ── persisted repos + token ───────────────────────────────────────
 const { reposText, repoList, save: saveRepos } = usePersistedRepos();
+const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 
 // ── session state ─────────────────────────────────────────────────
-// Token lives only in memory — sourced from .env or the setup form
-const token = ref<string>(ENV_TOKEN);
 const connected = ref(false);
 const loading = ref(false);
 const setupError = ref("");
@@ -45,7 +43,7 @@ const showSettings = ref(false);
 const lastUpdated = ref("");
 
 // Auto-connect if we have both a token and saved repos
-const canAutoConnect = ENV_TOKEN.length > 0 && repoList.value.length > 0;
+const canAutoConnect = token.value.length > 0 && repoList.value.length > 0;
 
 // ── data ──────────────────────────────────────────────────────────
 type RepoEntry = PullRequest[] | { error: string };
@@ -327,8 +325,16 @@ async function loadActivity(): Promise<void> {
   };
 }
 
-async function connect(newRepos: string): Promise<void> {
+async function connect(newRepos: string, newToken?: string): Promise<void> {
   setupError.value = "";
+  if (newToken !== undefined) {
+    token.value = newToken;
+    saveToken(newToken);
+  }
+  if (!token.value.trim()) {
+    setupError.value = "Please enter a GitHub token.";
+    return;
+  }
   if (!newRepos.trim()) {
     setupError.value = "Please enter at least one repository.";
     return;
@@ -353,8 +359,12 @@ async function refreshAll(): Promise<void> {
   }
 }
 
-async function handleSaveSettings(newRepos: string): Promise<void> {
+async function handleSaveSettings(newRepos: string, newToken?: string): Promise<void> {
   showSettings.value = false;
+  if (newToken !== undefined) {
+    token.value = newToken;
+    saveToken(newToken);
+  }
   saveRepos(newRepos);
   prData.value = {};
   knownIds.value = {};
@@ -394,6 +404,7 @@ if (canAutoConnect) {
   <SetupScreen
     v-if="!connected"
     :initial-repos="reposText"
+    :has-env-token="hasEnvToken"
     :loading="loading"
     :error="setupError"
     @connect="connect"
@@ -537,6 +548,8 @@ if (canAutoConnect) {
     <SettingsDialog
       :open="showSettings"
       :current-repos="reposText"
+      :has-env-token="hasEnvToken"
+      :current-token="token"
       @close="showSettings = false"
       @save="handleSaveSettings"
     />

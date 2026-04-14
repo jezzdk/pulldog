@@ -2,25 +2,27 @@
 import { ref } from "vue";
 import Card from "@/components/ui/Card.vue";
 import Button from "@/components/ui/Button.vue";
+import Input from "@/components/ui/Input.vue";
 import Textarea from "@/components/ui/Textarea.vue";
 import Label from "@/components/ui/Label.vue";
-import { RefreshCw, Zap } from "lucide-vue-next";
+import { RefreshCw, Zap, Lock } from "lucide-vue-next";
 
 const props = defineProps<{
   initialRepos: string;
+  hasEnvToken: boolean;
   loading: boolean;
   error: string;
 }>();
 
 const emit = defineEmits<{
-  connect: [repos: string];
+  connect: [repos: string, token?: string];
 }>();
 
-const hasToken = Boolean(import.meta.env.VITE_GITHUB_TOKEN);
 const repos = ref(props.initialRepos);
+const token = ref("");
 
 function handleConnect(): void {
-  emit("connect", repos.value);
+  emit("connect", repos.value, props.hasEnvToken ? undefined : token.value);
 }
 </script>
 
@@ -48,16 +50,21 @@ function handleConnect(): void {
         </div>
       </div>
 
-      <!-- Missing token error -->
-      <div
-        v-if="!hasToken"
-        class="mb-5 rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2 font-mono text-[11px] text-destructive"
-      >
-        <code>VITE_GITHUB_TOKEN</code> is not set. Add it to your
-        <code>.env</code> file and restart the dev server.
-      </div>
-
       <div class="space-y-5">
+        <!-- Token input (only shown when not set via .env) -->
+        <div v-if="!hasEnvToken" class="space-y-1.5">
+          <Label>GitHub Token</Label>
+          <Input
+            v-model="token"
+            type="password"
+            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+          />
+          <p class="font-mono text-[10.5px] text-muted-foreground">
+            Needs <code class="text-foreground/70">repo</code> scope. Saved to
+            localStorage — never sent to any server.
+          </p>
+        </div>
+
         <!-- Repos -->
         <div class="space-y-1.5">
           <Label>Repositories</Label>
@@ -65,7 +72,6 @@ function handleConnect(): void {
             v-model="repos"
             placeholder="owner/repo&#10;owner/another-repo"
             class="min-h-[88px]"
-            :disabled="!hasToken"
           />
           <p class="font-mono text-[10.5px] text-muted-foreground">
             One per line — format:
@@ -76,10 +82,22 @@ function handleConnect(): void {
           </p>
         </div>
 
+        <!-- Privacy note -->
+        <div
+          class="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+        >
+          <Lock class="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+          <p class="font-mono text-[10.5px] text-muted-foreground">
+            Everything stays in your browser. Your token and repo list are never
+            sent to any server — all GitHub API calls are made directly from
+            your machine.
+          </p>
+        </div>
+
         <!-- CTA -->
         <Button
           class="w-full mt-2"
-          :disabled="loading || !hasToken"
+          :disabled="loading"
           @click="handleConnect"
         >
           <RefreshCw v-if="loading" class="h-3 w-3 animate-spin" />
