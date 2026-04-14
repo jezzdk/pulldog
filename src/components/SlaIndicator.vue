@@ -4,7 +4,10 @@ import { slaStatus, SLA } from "@/composables/useSla";
 import Badge from "@/components/ui/Badge.vue";
 import { AlertTriangle, XCircle } from "lucide-vue-next";
 
-const props = defineProps<{ createdAt: Date; draft: boolean }>();
+const props = defineProps<{
+  createdAt: Date;
+  draft: boolean;
+}>();
 
 const status = computed(() =>
   props.draft ? "ok" : slaStatus(props.createdAt),
@@ -21,6 +24,7 @@ const overByLabel = computed(() => {
 </script>
 
 <template>
+  <!-- Only show SLA indicator for open PRs that are nearing or past breach -->
   <div v-if="status !== 'ok'">
     <Badge
       :variant="status === 'breach' ? 'destructive' : 'warning'"

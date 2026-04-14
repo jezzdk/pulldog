@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Input from "@/components/ui/Input.vue";
 import MultiSelect from "@/components/ui/MultiSelect.vue";
-import SlaLegend from "@/components/SlaLegend.vue";
+import Tooltip from "@/components/ui/Tooltip.vue";
 
 interface FilterOption {
   v: string;
@@ -14,13 +14,13 @@ const FILTERS: FilterOption[] = [
   { v: "approved", l: "Approved" },
   { v: "changes", l: "Changes" },
   { v: "draft", l: "Draft" },
+  { v: "merged", l: "Merged" },
   { v: "sla-warn", l: "⚠ Warning" },
   { v: "sla-breach", l: "🔴 Breach" },
 ];
 
-const props = defineProps<{
+defineProps<{
   activeFilter: string;
-  staleOnly: boolean;
   searchQ: string;
   repoOptions: string[];
   authorOptions: string[];
@@ -31,16 +31,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:activeFilter": [value: string];
-  "update:staleOnly": [value: boolean];
   "update:searchQ": [value: string];
   "update:selectedRepos": [value: string[]];
   "update:selectedAuthors": [value: string[]];
 }>();
-
-function setFilter(v: string): void {
-  emit("update:activeFilter", v);
-  emit("update:staleOnly", false);
-}
 </script>
 
 <template>
@@ -57,34 +51,16 @@ function setFilter(v: string): void {
     <button
       v-for="f in FILTERS"
       :key="f.v"
-      @click="setFilter(f.v)"
+      @click="emit('update:activeFilter', f.v)"
       class="rounded-full border px-3 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap"
       :class="
-        activeFilter === f.v && !staleOnly
+        activeFilter === f.v
           ? 'border-primary/50 bg-primary/10 text-primary'
           : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground'
       "
     >
       {{ f.l }}
     </button>
-
-    <div class="h-4 w-px bg-border mx-1" />
-
-    <!-- Stale toggle -->
-    <button
-      @click="emit('update:staleOnly', !staleOnly)"
-      class="rounded-full border px-3 py-0.5 font-mono text-[11px] transition-colors"
-      :class="
-        staleOnly
-          ? 'border-primary/50 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground'
-      "
-    >
-      Stale 7d+
-    </button>
-
-    <!-- SLA legend -->
-    <SlaLegend class="ml-1" />
 
     <div class="h-4 w-px bg-border mx-1" />
 

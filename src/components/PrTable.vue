@@ -19,7 +19,9 @@ type BadgeVariant =
   | "outline"
   | "success"
   | "warning"
+  | "orange"
   | "purple";
+
 
 const STATUS_LABELS: Record<ReviewStatus, string> = {
   open: "Open",
@@ -33,7 +35,8 @@ const STATUS_BADGE_VARIANT: Partial<Record<ReviewStatus, BadgeVariant>> = {
   open: "default",
   approved: "success",
   draft: "secondary",
-  changes: "outline",
+  changes: "orange",
+  merged: "purple",
 };
 
 function statusLabel(pr: PullRequest): string {
@@ -63,21 +66,6 @@ function ageText(d: Date): string {
   const dy = h / 24;
   if (dy < 30) return `${Math.floor(dy)}d`;
   return `${Math.floor(dy / 30)}mo`;
-}
-function ageClass(d: Date): string {
-  const days = (Date.now() - d.getTime()) / 86_400_000;
-  if (days < 1) return "text-emerald-400";
-  if (days < 3) return "text-muted-foreground";
-  if (days < 7) return "text-yellow-400";
-  return "text-destructive";
-}
-function hex2rgb(hex: string): string {
-  const n = parseInt(hex, 16);
-  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-}
-function slaRowCss(pr: PullRequest): string {
-  // imported logic inlined to avoid circular dep with SlaIndicator
-  return pr._flashClass;
 }
 function openPR(url: string): void {
   window.open(url, "_blank");
@@ -121,11 +109,6 @@ function openPR(url: string): void {
             Reviewers
           </th>
           <th
-            class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-28 hidden lg:table-cell"
-          >
-            Labels
-          </th>
-          <th
             class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-20 hidden sm:table-cell"
           >
             Comments
@@ -149,8 +132,8 @@ function openPR(url: string): void {
           :class="[
             'border-b border-border last:border-0 transition-colors cursor-pointer hover:bg-muted/20',
             pr._flashClass,
-            pr._slaRowCss,
             pr.reviewStatus === 'approved' ? 'row-approved' : '',
+            pr.reviewStatus === 'changes' ? 'row-changes' : '',
           ]"
           @click="openPR(pr.url)"
         >
@@ -181,7 +164,19 @@ function openPR(url: string): void {
               {{ pr.title }}
             </a>
             <span class="font-mono text-[10px] text-muted-foreground/60">
-              #{{ pr.number }} · <span :title="pr.createdAt.toISOString()">{{ verboseAge(pr.createdAt) }}</span>
+              #{{ pr.number }} ·
+              <template v-if="pr.reviewStatus === 'merged' && pr.mergedAt">
+                Merged <Tooltip :text="pr.mergedAt.toISOString()">{{ verboseAge(pr.mergedAt) }}</Tooltip>
+              </template>
+              <template v-else-if="pr.reviewStatus === 'approved' && pr.reviewedAt">
+                Approved <Tooltip :text="pr.reviewedAt.toISOString()">{{ verboseAge(pr.reviewedAt) }}</Tooltip>
+              </template>
+              <template v-else-if="pr.reviewStatus === 'changes' && pr.reviewedAt">
+                Reviewed <Tooltip :text="pr.reviewedAt.toISOString()">{{ verboseAge(pr.reviewedAt) }}</Tooltip>
+              </template>
+              <template v-else>
+                Opened <Tooltip :text="pr.createdAt.toISOString()">{{ verboseAge(pr.createdAt) }}</Tooltip>
+              </template>
             </span>
           </td>
 
@@ -245,27 +240,6 @@ function openPR(url: string): void {
             </span>
           </td>
 
-          <!-- Labels -->
-          <td class="px-3 py-2.5 hidden lg:table-cell">
-            <div v-if="pr.labels.length" class="flex flex-wrap gap-1">
-              <span
-                v-for="l in pr.labels.slice(0, 2)"
-                :key="l.name"
-                class="inline-block rounded-full border px-2 py-0.5 font-mono text-[10px] whitespace-nowrap"
-                :style="{
-                  borderColor: `rgba(${hex2rgb(l.color)}, 0.4)`,
-                  color: `#${l.color}`,
-                  background: `rgba(${hex2rgb(l.color)}, 0.07)`,
-                }"
-              >
-                {{ l.name }}
-              </span>
-            </div>
-            <span v-else class="font-mono text-[11px] text-muted-foreground/40">
-              —
-            </span>
-          </td>
-
           <!-- Comments -->
           <td class="px-3 py-2.5 hidden sm:table-cell">
             <div
@@ -277,26 +251,28 @@ function openPR(url: string): void {
               "
             >
               <span>{{ pr.commentCount }}</span>
-              <span
-                v-if="pr.commentCount >= commentFireThreshold"
-                class="text-sm leading-none"
-                title="Hot PR!"
-              >
-                🔥
-              </span>
+              <Tooltip v-if="pr.commentCount >= commentFireThreshold" text="Hot PR!">
+                <span class="text-sm leading-none">🔥</span>
+              </Tooltip>
             </div>
           </td>
 
           <!-- Age -->
           <td class="px-3 py-2.5">
-            <span class="font-mono text-[11px]" :class="ageClass(pr.createdAt)">
-              {{ ageText(pr.createdAt) }}
-            </span>
+            <Tooltip :text="pr.createdAt.toISOString()">
+              <span class="font-mono text-[11px] text-muted-foreground">
+                {{ ageText(pr.createdAt) }}
+              </span>
+            </Tooltip>
           </td>
 
-          <!-- SLA -->
+          <!-- SLA — only shown for open PRs -->
           <td class="px-3 py-2.5">
-            <SlaIndicator :created-at="pr.createdAt" :draft="pr.draft" />
+            <SlaIndicator
+              v-if="pr.reviewStatus === 'open'"
+              :created-at="pr.createdAt"
+              :draft="pr.draft"
+            />
           </td>
         </tr>
       </tbody>

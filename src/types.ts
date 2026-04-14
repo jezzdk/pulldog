@@ -28,6 +28,8 @@ export interface PullRequest {
   reviewStatus: ReviewStatus;
   commentCount: number;
   repo: string;
+  mergedAt?: Date;
+  reviewedAt?: Date;
   _flashClass: string;
   _slaRowCss: string;
 }

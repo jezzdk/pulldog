@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import { useAudio } from "@/composables/useAudio";
 import { useGithub } from "@/composables/useGithub";
 import { slaStatus } from "@/composables/useSla";
 import { useTheme } from "@/composables/useTheme";
 import { usePersistedRepos } from "@/composables/usePersistedRepos";
 import { usePersistedToken } from "@/composables/usePersistedToken";
-import type { PullRequest, Toast, FilteredGroup } from "@/types";
+import type { PullRequest, ReviewStatus, Toast, FilteredGroup } from "@/types";
 
 import SetupScreen from "@/components/SetupScreen.vue";
 import Topbar from "@/components/Topbar.vue";
@@ -14,8 +14,11 @@ import FilterBar from "@/components/FilterBar.vue";
 import PrTable from "@/components/PrTable.vue";
 import SettingsDialog from "@/components/SettingsDialog.vue";
 import SummaryBar from "@/components/SummaryBar.vue";
+import SlaLegend from "@/components/SlaLegend.vue";
 import Badge from "@/components/ui/Badge.vue";
 import Card from "@/components/ui/Card.vue";
+import Dialog from "@/components/ui/Dialog.vue";
+import Button from "@/components/ui/Button.vue";
 import { CheckCircle2, GitPullRequest, RefreshCw } from "lucide-vue-next";
 
 // ── theme (boot before render) ────────────────────────────────────
@@ -27,6 +30,15 @@ const COMMENT_FIRE_THRESHOLD = Number(
 );
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
 
+type StatPeriod = "12h" | "24h" | "7d" | "14d" | "30d";
+const STAT_PERIOD_MS: Record<StatPeriod, number> = {
+  "12h": 12 * 3_600_000,
+  "24h": 24 * 3_600_000,
+  "7d":   7 * 86_400_000,
+  "14d": 14 * 86_400_000,
+  "30d": 30 * 86_400_000,
+};
+
 // ── persisted repos + token ───────────────────────────────────────
 const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
@@ -36,6 +48,7 @@ const connected = ref(false);
 const loading = ref(false);
 const setupError = ref("");
 const showSettings = ref(false);
+const showLogoutConfirm = ref(false);
 const lastUpdated = ref("");
 
 // Auto-connect if we have both a token and saved repos
@@ -44,11 +57,15 @@ const canAutoConnect = token.value.length > 0 && repoList.value.length > 0;
 // ── data ──────────────────────────────────────────────────────────
 type RepoEntry = PullRequest[] | { error: string };
 const prData = ref<Record<string, RepoEntry>>({});
-const knownIds = ref<Record<string, Set<number>>>({});
+// Tracks the last-seen reviewStatus per PR id, per repo — used to detect
+// open→merged transitions without a secondary API call.
+const knownStatuses = ref<Record<string, Record<number, ReviewStatus>>>({});
+
+// ── stat period ───────────────────────────────────────────────────
+const statPeriod = ref<StatPeriod>("7d");
 
 // ── filters ───────────────────────────────────────────────────────
 const activeFilter = ref("all");
-const staleOnly = ref(false);
 const searchQ = ref("");
 const selectedRepos = ref<string[]>([]);
 const selectedAuthors = ref<string[]>([]);
@@ -58,6 +75,10 @@ type RepoActivity = {
   created7d: number;
   merged7d: number;
   avgLeadTimeHours: number | null;
+  avgTimeToReviewHours: number | null;
+  avgTimeToMergeHours: number | null;
+  reviewedCount: number;
+  mergedWithApprovalCount: number;
 };
 const activityByRepo = ref<Record<string, RepoActivity>>({});
 const activityLoading = ref(true);
@@ -86,7 +107,7 @@ function addToast(
 // ── audio / github ────────────────────────────────────────────────
 const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
 const tokenComputed = computed(() => token.value);
-const { fetchRepo, checkIfMerged, fetchRecentActivity, fetchAvailableRepos } =
+const { fetchRepo, fetchRecentActivity, fetchReviewStats, fetchAvailableRepos } =
   useGithub(tokenComputed);
 
 // ── computed stats ────────────────────────────────────────────────
@@ -154,17 +175,24 @@ const statBreach = computed(
 const filteredActivity = computed(() => {
   const loaded = Object.keys(activityByRepo.value);
   if (loaded.length === 0)
-    return { created7d: null as number | null, merged7d: null as number | null, avgLeadTimeHours: null as number | null };
+    return {
+      created7d: null as number | null,
+      merged7d: null as number | null,
+      avgLeadTimeHours: null as number | null,
+      avgTimeToReviewHours: null as number | null,
+      avgTimeToMergeHours: null as number | null,
+    };
 
   const activeRepos =
     selectedRepos.value.length > 0
       ? selectedRepos.value.filter((r) => activityByRepo.value[r])
       : loaded;
 
-  let totalCreated = 0,
-    totalMerged = 0,
-    totalLeadMs = 0,
-    mergedWithTime = 0;
+  let totalCreated = 0, totalMerged = 0;
+  let totalLeadMs = 0, mergedWithTime = 0;
+  let totalReviewMs = 0, reviewedCount = 0;
+  let totalMergeMs = 0, mergedWithApproval = 0;
+
   for (const repo of activeRepos) {
     const a = activityByRepo.value[repo];
     if (!a) continue;
@@ -174,12 +202,25 @@ const filteredActivity = computed(() => {
       totalLeadMs += a.avgLeadTimeHours * 3_600_000 * a.merged7d;
       mergedWithTime += a.merged7d;
     }
+    if (a.avgTimeToReviewHours !== null) {
+      totalReviewMs += a.avgTimeToReviewHours * 3_600_000 * a.reviewedCount;
+      reviewedCount += a.reviewedCount;
+    }
+    if (a.avgTimeToMergeHours !== null) {
+      totalMergeMs += a.avgTimeToMergeHours * 3_600_000 * a.mergedWithApprovalCount;
+      mergedWithApproval += a.mergedWithApprovalCount;
+    }
   }
+
   return {
     created7d: totalCreated as number | null,
     merged7d: totalMerged as number | null,
     avgLeadTimeHours:
       mergedWithTime > 0 ? totalLeadMs / mergedWithTime / 3_600_000 : null,
+    avgTimeToReviewHours:
+      reviewedCount > 0 ? totalReviewMs / reviewedCount / 3_600_000 : null,
+    avgTimeToMergeHours:
+      mergedWithApproval > 0 ? totalMergeMs / mergedWithApproval / 3_600_000 : null,
   };
 });
 
@@ -194,28 +235,32 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
       if (!entry) return { repo, prs: [], error: null };
       if (!Array.isArray(entry)) return { repo, prs: [], error: entry.error };
 
-      let prs: PullRequest[] = entry;
+      let prs: PullRequest[] = [...entry];
       if (activeFilter.value === "sla-warn")
         prs = prs.filter(
-          (p) => !p.draft && slaStatus(p.createdAt) === "warning",
+          (p) =>
+            p.reviewStatus === "open" &&
+            slaStatus(p.createdAt) === "warning",
         );
       else if (activeFilter.value === "sla-breach")
         prs = prs.filter(
-          (p) => !p.draft && slaStatus(p.createdAt) === "breach",
+          (p) =>
+            p.reviewStatus === "open" &&
+            slaStatus(p.createdAt) === "breach",
         );
       else if (activeFilter.value === "draft")
         prs = prs.filter((p) => p.reviewStatus === "draft");
+      else if (activeFilter.value === "merged")
+        prs = prs.filter((p) => p.reviewStatus === "merged");
       else if (activeFilter.value !== "all")
         prs = prs.filter(
           (p) =>
             p.reviewStatus === activeFilter.value && p.reviewStatus !== "draft",
         );
       else
-        // "all" hides drafts by default
-        prs = prs.filter((p) => p.reviewStatus !== "draft");
-      if (staleOnly.value)
+        // "all" hides drafts and merged by default
         prs = prs.filter(
-          (p) => Date.now() - p.createdAt.getTime() > 7 * 86_400_000,
+          (p) => p.reviewStatus !== "draft" && p.reviewStatus !== "merged",
         );
       if (selectedAuthors.value.length > 0)
         prs = prs.filter((p) => selectedAuthors.value.includes(p.author.login));
@@ -256,66 +301,45 @@ async function loadAll(isRefresh = false): Promise<void> {
       const fresh = r.value;
       anyOk = true;
 
-      // Annotate each PR with its SLA row CSS class (drafts are exempt)
+      // Annotate SLA row CSS (open PRs only; merged/approved/changes/draft are exempt)
       for (const p of fresh) {
-        if (p.draft) {
+        if (
+          p.draft ||
+          p.reviewStatus === "merged" ||
+          p.reviewStatus === "approved" ||
+          p.reviewStatus === "changes"
+        ) {
           p._slaRowCss = "";
           continue;
         }
-        const s = slaStatus(p.createdAt);
-        p._slaRowCss =
-          s === "breach"
-            ? "row-sla-breach"
-            : s === "warning"
-              ? "row-sla-warning"
-              : "";
+        p._slaRowCss = "";
       }
 
-      if (isRefresh && knownIds.value[repo]) {
-        const prevIds = knownIds.value[repo]!;
-        const freshIds = new Set(fresh.map((p) => p.id));
+      if (isRefresh && knownStatuses.value[repo]) {
+        const prev = knownStatuses.value[repo]!;
 
         for (const p of fresh) {
-          if (!prevIds.has(p.id)) {
-            playNewPR();
-            addToast(
-              "new",
-              "🔔",
-              "New pull request",
-              `${repo} #${p.number}: ${p.title}`,
-            );
-            await nextTick();
-            p._flashClass = "flash-new";
-            setTimeout(() => {
-              p._flashClass = "";
-            }, 900);
-          }
-        }
-
-        for (const id of prevIds) {
-          if (!freshIds.has(id)) {
-            const existing = prData.value[repo];
-            const prev = Array.isArray(existing)
-              ? existing.find((p) => p.id === id)
-              : undefined;
-            if (prev) {
-              void checkIfMerged(repo, prev.number).then((merged) => {
-                if (merged) {
-                  playMerged();
-                  addToast(
-                    "merged",
-                    "🎉",
-                    "PR merged!",
-                    `${repo} #${prev.number}: ${prev.title}`,
-                  );
-                }
-              });
+          const prevStatus = prev[p.id];
+          if (prevStatus === undefined) {
+            // Brand-new PR — only notify for genuinely new open PRs
+            if (p.reviewStatus !== "merged") {
+              playNewPR();
+              addToast("new", "🔔", "New pull request", `${repo} #${p.number}: ${p.title}`);
+              await nextTick();
+              p._flashClass = "flash-new";
+              setTimeout(() => { p._flashClass = ""; }, 900);
             }
+          } else if (prevStatus !== "merged" && p.reviewStatus === "merged") {
+            // PR transitioned to merged this poll — play gong
+            playMerged();
+            addToast("merged", "🎉", "PR merged!", `${repo} #${p.number}: ${p.title}`);
           }
         }
       }
 
-      knownIds.value[repo] = new Set(fresh.map((p) => p.id));
+      knownStatuses.value[repo] = Object.fromEntries(
+        fresh.map((p) => [p.id, p.reviewStatus]),
+      );
       prData.value[repo] = fresh;
     } else {
       const msg =
@@ -339,19 +363,39 @@ async function loadAll(isRefresh = false): Promise<void> {
 
 async function loadActivity(): Promise<void> {
   activityLoading.value = true;
+  const periodMs = STAT_PERIOD_MS[statPeriod.value];
   const results = await Promise.allSettled(
-    repoList.value.map(async (repo) => ({
-      repo,
-      metrics: await fetchRecentActivity(repo),
-    })),
+    repoList.value.map(async (repo) => {
+      const [activityRes, reviewStatsRes] = await Promise.allSettled([
+        fetchRecentActivity(repo, periodMs),
+        fetchReviewStats(repo, periodMs),
+      ]);
+      return {
+        repo,
+        activity: activityRes.status === "fulfilled" ? activityRes.value : null,
+        reviewStats: reviewStatsRes.status === "fulfilled" ? reviewStatsRes.value : null,
+      };
+    }),
   );
   const updated = { ...activityByRepo.value };
   for (const r of results) {
-    if (r.status === "fulfilled") updated[r.value.repo] = r.value.metrics;
+    if (r.status === "fulfilled" && r.value.activity !== null) {
+      updated[r.value.repo] = {
+        ...r.value.activity,
+        avgTimeToReviewHours: r.value.reviewStats?.avgTimeToReviewHours ?? null,
+        avgTimeToMergeHours: r.value.reviewStats?.avgTimeToMergeHours ?? null,
+        reviewedCount: r.value.reviewStats?.reviewedCount ?? 0,
+        mergedWithApprovalCount: r.value.reviewStats?.mergedWithApprovalCount ?? 0,
+      };
+    }
   }
   activityByRepo.value = updated;
   activityLoading.value = false;
 }
+
+watch(statPeriod, () => {
+  if (connected.value) void loadActivity();
+});
 
 async function connect(newRepos: string[], newToken?: string): Promise<void> {
   setupError.value = "";
@@ -398,7 +442,7 @@ async function handleSaveSettings(
   }
   saveList(newRepos);
   prData.value = {};
-  knownIds.value = {};
+  knownStatuses.value = {};
   selectedRepos.value = [];
   selectedAuthors.value = [];
   activityByRepo.value = {};
@@ -406,6 +450,27 @@ async function handleSaveSettings(
   await loadAll(false);
   void loadActivity();
   startPolling();
+}
+
+function handleLogout(): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  localStorage.removeItem("pulldog-repos");
+  localStorage.removeItem("pulldog-token");
+  token.value = "";
+  repoList.value.splice(0);
+  prData.value = {};
+  knownStatuses.value = {};
+  activityByRepo.value = {};
+  activityLoading.value = true;
+  selectedRepos.value = [];
+  selectedAuthors.value = [];
+  activeFilter.value = "all";
+  searchQ.value = "";
+  showLogoutConfirm.value = false;
+  connected.value = false;
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -450,16 +515,17 @@ if (canAutoConnect) {
       :loading="loading"
       :last-updated="lastUpdated"
       :test-mode="TEST_MODE"
+      :has-env-token="hasEnvToken"
       :on-test-new-pr="playNewPR"
       :on-test-merged="playMerged"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
       @open-settings="showSettings = true"
+      @logout="showLogoutConfirm = true"
     />
 
     <FilterBar
       v-model:active-filter="activeFilter"
-      v-model:stale-only="staleOnly"
       v-model:search-q="searchQ"
       v-model:selected-repos="selectedRepos"
       v-model:selected-authors="selectedAuthors"
@@ -473,7 +539,10 @@ if (canAutoConnect) {
       :created7d="filteredActivity.created7d"
       :merged7d="filteredActivity.merged7d"
       :avg-lead-time-hours="filteredActivity.avgLeadTimeHours"
+      :avg-time-to-review-hours="filteredActivity.avgTimeToReviewHours"
+      :avg-time-to-merge-hours="filteredActivity.avgTimeToMergeHours"
       :loading="activityLoading"
+      v-model:period="statPeriod"
     />
 
     <!-- PR groups -->
@@ -487,31 +556,34 @@ if (canAutoConnect) {
       </div>
 
       <template v-else>
-        <!-- Repo summary chips -->
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          <div
-            v-for="group in filteredGroups"
-            :key="group.repo"
-            class="flex items-center gap-1.5"
-          >
-            <GitPullRequest class="h-3 w-3 text-muted-foreground shrink-0" />
-            <a
-              :href="'https://github.com/' + group.repo"
-              target="_blank"
-              class="font-mono text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+        <!-- Repo summary chips + SLA legend -->
+        <div class="flex flex-wrap items-center justify-between gap-y-1.5">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <div
+              v-for="group in filteredGroups"
+              :key="group.repo"
+              class="flex items-center gap-1.5"
             >
-              {{ group.repo }}
-            </a>
-            <Badge variant="secondary" class="text-[10px] px-1.5 py-0">
-              {{ group.prs.length }}
-            </Badge>
-            <span
-              v-if="group.error"
-              class="font-mono text-[11px] text-destructive"
-            >
-              ⚠ {{ group.error }}
-            </span>
+              <GitPullRequest class="h-3 w-3 text-muted-foreground shrink-0" />
+              <a
+                :href="'https://github.com/' + group.repo"
+                target="_blank"
+                class="font-mono text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+              >
+                {{ group.repo }}
+              </a>
+              <Badge variant="secondary" class="text-[10px] px-1.5 py-0">
+                {{ group.prs.length }}
+              </Badge>
+              <span
+                v-if="group.error"
+                class="font-mono text-[11px] text-destructive"
+              >
+                ⚠ {{ group.error }}
+              </span>
+            </div>
           </div>
+          <SlaLegend />
         </div>
 
         <!-- Unified PR table -->
@@ -574,6 +646,30 @@ if (canAutoConnect) {
         </Card>
       </Transition>
     </div>
+
+    <!-- Logout confirmation -->
+    <Dialog :open="showLogoutConfirm" @close="showLogoutConfirm = false">
+      <div class="space-y-4">
+        <h2 class="font-mono text-sm font-semibold text-foreground">
+          Disconnect?
+        </h2>
+        <p class="text-sm text-muted-foreground">
+          This will clear your saved token and repositories and return you to
+          the setup screen.
+        </p>
+        <div class="flex gap-2 pt-1">
+          <Button
+            variant="outline"
+            class="flex-1"
+            @click="showLogoutConfirm = false"
+            >Cancel</Button
+          >
+          <Button variant="destructive" class="flex-1" @click="handleLogout"
+            >Disconnect</Button
+          >
+        </div>
+      </div>
+    </Dialog>
 
     <!-- Settings -->
     <SettingsDialog

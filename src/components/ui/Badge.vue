@@ -9,6 +9,7 @@ type Variant =
   | "outline"
   | "success"
   | "warning"
+  | "orange"
   | "purple";
 
 const props = withDefaults(
@@ -32,6 +33,7 @@ const variants: Record<Variant, string> = {
   outline: "border-border text-muted-foreground",
   success: "border-transparent bg-emerald-500/10 text-emerald-400",
   warning: "border-transparent bg-yellow-500/10 text-yellow-400",
+  orange: "border-transparent bg-orange-500/10 text-orange-400",
   purple: "border-transparent bg-purple-500/10 text-purple-400",
 };
 

@@ -2,6 +2,7 @@
 import Badge from "@/components/ui/Badge.vue";
 import Button from "@/components/ui/Button.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
+import Tooltip from "@/components/ui/Tooltip.vue";
 import { useFullscreen } from "@/composables/useFullscreen";
 import {
   RefreshCw,
@@ -11,6 +12,7 @@ import {
   Zap,
   Maximize2,
   Minimize2,
+  Power,
 } from "lucide-vue-next";
 
 defineProps<{
@@ -22,6 +24,7 @@ defineProps<{
   loading: boolean;
   lastUpdated: string;
   testMode: boolean;
+  hasEnvToken: boolean;
   onTestNewPr: () => void;
   onTestMerged: () => void;
 }>();
@@ -30,6 +33,7 @@ defineEmits<{
   refresh: [];
   toggleSound: [];
   openSettings: [];
+  logout: [];
 }>();
 
 const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
@@ -101,29 +105,33 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       <ThemeToggle />
 
       <!-- Fullscreen toggle — only shown if the Fullscreen API is available -->
-      <Button
+      <Tooltip
         v-if="isSupported"
-        variant="ghost"
-        size="icon"
-        :title="
-          isFullscreen
-            ? 'Exit fullscreen (Esc)'
-            : 'Enter fullscreen / kiosk mode'
-        "
-        @click="toggleFullscreen"
+        :text="isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen / kiosk mode'"
+        side="bottom"
       >
-        <Minimize2 v-if="isFullscreen" class="h-4 w-4" />
-        <Maximize2 v-else class="h-4 w-4" />
-      </Button>
+        <Button variant="ghost" size="icon" @click="toggleFullscreen">
+          <Minimize2 v-if="isFullscreen" class="h-4 w-4" />
+          <Maximize2 v-else class="h-4 w-4" />
+        </Button>
+      </Tooltip>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Settings"
-        @click="$emit('openSettings')"
-      >
-        <Settings class="h-4 w-4" />
-      </Button>
+      <Tooltip text="Settings" side="bottom">
+        <Button variant="ghost" size="icon" @click="$emit('openSettings')">
+          <Settings class="h-4 w-4" />
+        </Button>
+      </Tooltip>
+
+      <Tooltip v-if="!hasEnvToken" text="Disconnect" side="bottom">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="text-muted-foreground hover:text-destructive"
+          @click="$emit('logout')"
+        >
+          <Power class="h-4 w-4" />
+        </Button>
+      </Tooltip>
     </div>
   </header>
 

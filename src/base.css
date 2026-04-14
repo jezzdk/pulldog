@@ -93,7 +93,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: "Geist", sans-serif;
-    font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     min-height: 100%;
@@ -124,6 +123,10 @@
 .dot-draft {
   background-color: hsl(var(--muted-foreground));
 }
+.dot-merged {
+  background-color: hsl(271 81% 66%);
+  box-shadow: 0 0 6px hsl(271 81% 66% / 0.5);
+}
 
 /* ── Status row highlights ──────────────────────────────── */
 .row-approved {
@@ -135,22 +138,14 @@
   border-left: 2px solid hsl(var(--color-green) / 0.5) !important;
 }
 
-/* ── SLA row highlights ─────────────────────────────────── */
-.row-sla-warning {
+/* ── Status row highlights ──────────────────────────────── */
+.row-changes {
   background: linear-gradient(
     90deg,
     hsl(var(--color-sla-warn) / 0.07) 0%,
     transparent 60%
   );
   border-left: 2px solid hsl(var(--color-sla-warn) / 0.55) !important;
-}
-.row-sla-breach {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--color-sla-breach) / 0.08) 0%,
-    transparent 60%
-  );
-  border-left: 2px solid hsl(var(--color-sla-breach) / 0.65) !important;
 }
 
 /* ── Row flash animations ───────────────────────────────── */
