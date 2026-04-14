@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import Badge   from '@/components/ui/Badge.vue'
-import PrTable from '@/components/PrTable.vue'
-import { GitPullRequest } from 'lucide-vue-next'
-import type { PullRequest } from '@/types'
+import Badge from "@/components/ui/Badge.vue";
+import PrTable from "@/components/PrTable.vue";
+import { GitPullRequest } from "lucide-vue-next";
+import type { PullRequest } from "@/types";
 
 defineProps<{
-  repo:                  string
-  prs:                   PullRequest[]
-  error:                 string | null
-  commentFireThreshold:  number
-}>()
+  repo: string;
+  prs: PullRequest[];
+  error: string | null;
+  commentFireThreshold: number;
+}>();
 </script>
 
 <template>
@@ -21,9 +21,14 @@ defineProps<{
         :href="'https://github.com/' + repo"
         target="_blank"
         class="font-mono text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
-      >{{ repo }}</a>
-      <Badge variant="secondary" class="text-[10px] px-1.5 py-0">{{ prs.length }}</Badge>
-      <span v-if="error" class="font-mono text-[11px] text-destructive ml-1">⚠ {{ error }}</span>
+        >{{ repo }}</a
+      >
+      <Badge variant="secondary" class="text-[10px] px-1.5 py-0">{{
+        prs.length
+      }}</Badge>
+      <span v-if="error" class="font-mono text-[11px] text-destructive ml-1"
+        >⚠ {{ error }}</span
+      >
     </div>
 
     <!-- Table -->

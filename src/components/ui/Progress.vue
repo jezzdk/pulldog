@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ value?: number }>(), { value: 0 })
+withDefaults(defineProps<{ value?: number }>(), { value: 0 });
 </script>
 <template>
   <div class="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary">

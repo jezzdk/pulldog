@@ -1,47 +1,50 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { cn } from '@/lib/utils'
-import { ChevronDown, X } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { cn } from "@/lib/utils";
+import { ChevronDown, X } from "lucide-vue-next";
 
-const props = withDefaults(defineProps<{
-  label:     string
-  options?:  string[]
-  selected?: string[]
-}>(), {
-  options:  () => [],
-  selected: () => [],
-})
+const props = withDefaults(
+  defineProps<{
+    label: string;
+    options?: string[];
+    selected?: string[];
+  }>(),
+  {
+    options: () => [],
+    selected: () => [],
+  },
+);
 
 const emit = defineEmits<{
-  'update:selected': [value: string[]]
-}>()
+  "update:selected": [value: string[]];
+}>();
 
-const open = ref(false)
-const root = ref<HTMLDivElement | null>(null)
+const open = ref(false);
+const root = ref<HTMLDivElement | null>(null);
 
-const activeCount = computed(() => props.selected.length)
-const isActive    = computed(() => activeCount.value > 0)
+const activeCount = computed(() => props.selected.length);
+const isActive = computed(() => activeCount.value > 0);
 
 function toggle(value: string): void {
   const next = props.selected.includes(value)
-    ? props.selected.filter(v => v !== value)
-    : [...props.selected, value]
-  emit('update:selected', next)
+    ? props.selected.filter((v) => v !== value)
+    : [...props.selected, value];
+  emit("update:selected", next);
 }
 
 function clear(e: MouseEvent): void {
-  e.stopPropagation()
-  emit('update:selected', [])
+  e.stopPropagation();
+  emit("update:selected", []);
 }
 
 function handleOutside(e: MouseEvent): void {
   if (root.value && !root.value.contains(e.target as Node)) {
-    open.value = false
+    open.value = false;
   }
 }
 
-onMounted(()  => document.addEventListener('mousedown', handleOutside))
-onUnmounted(() => document.removeEventListener('mousedown', handleOutside))
+onMounted(() => document.addEventListener("mousedown", handleOutside));
+onUnmounted(() => document.removeEventListener("mousedown", handleOutside));
 </script>
 
 <template>
@@ -49,12 +52,14 @@ onUnmounted(() => document.removeEventListener('mousedown', handleOutside))
     <!-- Trigger pill -->
     <button
       @click="open = !open"
-      :class="cn(
-        'flex items-center gap-1 rounded-full border px-3 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap select-none',
-        isActive
-          ? 'border-primary/50 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground',
-      )"
+      :class="
+        cn(
+          'flex items-center gap-1 rounded-full border px-3 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap select-none',
+          isActive
+            ? 'border-primary/50 bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground',
+        )
+      "
     >
       {{ label }}
       <span
@@ -99,23 +104,38 @@ onUnmounted(() => document.removeEventListener('mousedown', handleOutside))
           >
             <span
               class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
-              :class="selected.includes(opt) ? 'border-primary bg-primary' : 'border-border bg-transparent'"
+              :class="
+                selected.includes(opt)
+                  ? 'border-primary bg-primary'
+                  : 'border-border bg-transparent'
+              "
             >
               <svg
                 v-if="selected.includes(opt)"
                 viewBox="0 0 10 10"
                 class="h-2 w-2 text-primary-foreground"
-                fill="none" stroke="currentColor" stroke-width="2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
               >
-                <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
+                <path
+                  d="M1.5 5l2.5 2.5 4.5-4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </span>
-            <span class="font-mono text-[11px] text-foreground truncate">{{ opt }}</span>
+            <span class="font-mono text-[11px] text-foreground truncate">{{
+              opt
+            }}</span>
           </button>
         </div>
         <div v-if="isActive" class="border-t border-border px-3 py-1.5">
           <button
-            @click="emit('update:selected', []); open = false"
+            @click="
+              emit('update:selected', []);
+              open = false;
+            "
             class="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
           >
             Clear all

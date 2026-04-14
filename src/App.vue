@@ -1,281 +1,362 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, nextTick } from 'vue'
-import { useAudio }          from '@/composables/useAudio'
-import { useGithub }         from '@/composables/useGithub'
-import { slaStatus }         from '@/composables/useSla'
-import { useTheme }          from '@/composables/useTheme'
-import { usePersistedRepos } from '@/composables/usePersistedRepos'
-import type { PullRequest, ActivityMetrics, Toast, FilteredGroup } from '@/types'
+import { ref, computed, onUnmounted, nextTick } from "vue";
+import { useAudio } from "@/composables/useAudio";
+import { useGithub } from "@/composables/useGithub";
+import { slaStatus } from "@/composables/useSla";
+import { useTheme } from "@/composables/useTheme";
+import { usePersistedRepos } from "@/composables/usePersistedRepos";
+import type {
+  PullRequest,
+  ActivityMetrics,
+  Toast,
+  FilteredGroup,
+} from "@/types";
 
-import SetupScreen   from '@/components/SetupScreen.vue'
-import Topbar        from '@/components/Topbar.vue'
-import FilterBar     from '@/components/FilterBar.vue'
-import RepoGroup     from '@/components/RepoGroup.vue'
-import SettingsDialog from '@/components/SettingsDialog.vue'
-import SummaryBar    from '@/components/SummaryBar.vue'
-import Card          from '@/components/ui/Card.vue'
-import { CheckCircle2, RefreshCw } from 'lucide-vue-next'
+import SetupScreen from "@/components/SetupScreen.vue";
+import Topbar from "@/components/Topbar.vue";
+import FilterBar from "@/components/FilterBar.vue";
+import RepoGroup from "@/components/RepoGroup.vue";
+import SettingsDialog from "@/components/SettingsDialog.vue";
+import SummaryBar from "@/components/SummaryBar.vue";
+import Card from "@/components/ui/Card.vue";
+import { CheckCircle2, RefreshCw } from "lucide-vue-next";
 
 // ── theme (boot before render) ────────────────────────────────────
-useTheme()
+useTheme();
 
 // ── constants ─────────────────────────────────────────────────────
-const COMMENT_FIRE_THRESHOLD = Number(import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10)
-const ENV_TOKEN = (import.meta.env.VITE_GITHUB_TOKEN as string | undefined) ?? ''
+const COMMENT_FIRE_THRESHOLD = Number(
+  import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10,
+);
+const ENV_TOKEN =
+  (import.meta.env.VITE_GITHUB_TOKEN as string | undefined) ?? "";
 
 // ── persisted repos ───────────────────────────────────────────────
-const { reposText, repoList, save: saveRepos } = usePersistedRepos()
+const { reposText, repoList, save: saveRepos } = usePersistedRepos();
 
 // ── session state ─────────────────────────────────────────────────
 // Token lives only in memory — sourced from .env or the setup form
-const token    = ref<string>(ENV_TOKEN)
-const connected    = ref(false)
-const loading      = ref(false)
-const setupError   = ref('')
-const showSettings = ref(false)
-const lastUpdated  = ref('')
+const token = ref<string>(ENV_TOKEN);
+const connected = ref(false);
+const loading = ref(false);
+const setupError = ref("");
+const showSettings = ref(false);
+const lastUpdated = ref("");
 
 // Auto-connect if we have both a token and saved repos
-const canAutoConnect = ENV_TOKEN.length > 0 && repoList.value.length > 0
+const canAutoConnect = ENV_TOKEN.length > 0 && repoList.value.length > 0;
 
 // ── data ──────────────────────────────────────────────────────────
-type RepoEntry = PullRequest[] | { error: string }
-const prData   = ref<Record<string, RepoEntry>>({})
-const knownIds = ref<Record<string, Set<number>>>({})
+type RepoEntry = PullRequest[] | { error: string };
+const prData = ref<Record<string, RepoEntry>>({});
+const knownIds = ref<Record<string, Set<number>>>({});
 
 // ── filters ───────────────────────────────────────────────────────
-const activeFilter    = ref('all')
-const staleOnly       = ref(false)
-const searchQ         = ref('')
-const selectedRepos   = ref<string[]>([])
-const selectedAuthors = ref<string[]>([])
+const activeFilter = ref("all");
+const staleOnly = ref(false);
+const searchQ = ref("");
+const selectedRepos = ref<string[]>([]);
+const selectedAuthors = ref<string[]>([]);
 
 // ── activity metrics ──────────────────────────────────────────────
 const activityData = ref<ActivityMetrics>({
-  created7d: null, merged7d: null, avgLeadTimeHours: null, activityLoading: true,
-})
+  created7d: null,
+  merged7d: null,
+  avgLeadTimeHours: null,
+  activityLoading: true,
+});
 
 // ── toasts ────────────────────────────────────────────────────────
-const toasts = ref<Toast[]>([])
-let toastId = 0
+const toasts = ref<Toast[]>([]);
+let toastId = 0;
 
-function addToast(type: Toast['type'], icon: string, title: string, sub: string): void {
-  const id = ++toastId
-  toasts.value.push({ id, type, icon, title, sub, out: false })
+function addToast(
+  type: Toast["type"],
+  icon: string,
+  title: string,
+  sub: string,
+): void {
+  const id = ++toastId;
+  toasts.value.push({ id, type, icon, title, sub, out: false });
   setTimeout(() => {
-    const t = toasts.value.find(x => x.id === id)
-    if (t) t.out = true
-    setTimeout(() => { toasts.value = toasts.value.filter(x => x.id !== id) }, 300)
-  }, 4500)
+    const t = toasts.value.find((x) => x.id === id);
+    if (t) t.out = true;
+    setTimeout(() => {
+      toasts.value = toasts.value.filter((x) => x.id !== id);
+    }, 300);
+  }, 4500);
 }
 
 // ── audio / github ────────────────────────────────────────────────
-const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio()
-const tokenComputed = computed(() => token.value)
-const { fetchRepo, checkIfMerged, fetchRecentActivity } = useGithub(tokenComputed)
+const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
+const tokenComputed = computed(() => token.value);
+const { fetchRepo, checkIfMerged, fetchRecentActivity } =
+  useGithub(tokenComputed);
 
 // ── computed stats ────────────────────────────────────────────────
 const allPRs = computed<PullRequest[]>(() =>
   Object.values(prData.value)
     .filter((v): v is PullRequest[] => Array.isArray(v))
     .flat(),
-)
+);
 
 const repoOptions = computed<string[]>(() =>
-  repoList.value.filter(r => Array.isArray(prData.value[r])),
-)
+  repoList.value.filter((r) => Array.isArray(prData.value[r])),
+);
 
 const authorOptions = computed<string[]>(() => {
-  const logins = new Set(allPRs.value.map(p => p.author.login))
-  return [...logins].sort((a, b) => a.localeCompare(b))
-})
+  const logins = new Set(allPRs.value.map((p) => p.author.login));
+  return [...logins].sort((a, b) => a.localeCompare(b));
+});
 
-const totalOpen    = computed(() => allPRs.value.length)
-const statOpen     = computed(() => allPRs.value.filter(p => p.reviewStatus === 'open').length)
-const statApproved = computed(() => allPRs.value.filter(p => p.reviewStatus === 'approved').length)
-const statFailing  = computed(() => allPRs.value.filter(p => p.reviewStatus === 'failing').length)
-const statWarn     = computed(() => allPRs.value.filter(p => slaStatus(p.createdAt) === 'warning').length)
-const statBreach   = computed(() => allPRs.value.filter(p => slaStatus(p.createdAt) === 'breach').length)
+const totalOpen = computed(() => allPRs.value.length);
+const statOpen = computed(
+  () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
+);
+const statApproved = computed(
+  () => allPRs.value.filter((p) => p.reviewStatus === "approved").length,
+);
+const statFailing = computed(
+  () => allPRs.value.filter((p) => p.reviewStatus === "failing").length,
+);
+const statWarn = computed(
+  () => allPRs.value.filter((p) => slaStatus(p.createdAt) === "warning").length,
+);
+const statBreach = computed(
+  () => allPRs.value.filter((p) => slaStatus(p.createdAt) === "breach").length,
+);
 
 const filteredGroups = computed<FilteredGroup[]>(() =>
   repoList.value
-    .filter(repo => selectedRepos.value.length === 0 || selectedRepos.value.includes(repo))
-    .map(repo => {
-      const entry = prData.value[repo]
-      if (!entry)               return { repo, prs: [], error: null }
-      if (!Array.isArray(entry)) return { repo, prs: [], error: entry.error }
+    .filter(
+      (repo) =>
+        selectedRepos.value.length === 0 || selectedRepos.value.includes(repo),
+    )
+    .map((repo) => {
+      const entry = prData.value[repo];
+      if (!entry) return { repo, prs: [], error: null };
+      if (!Array.isArray(entry)) return { repo, prs: [], error: entry.error };
 
-      let prs: PullRequest[] = entry
-      if      (activeFilter.value === 'sla-warn')   prs = prs.filter(p => slaStatus(p.createdAt) === 'warning')
-      else if (activeFilter.value === 'sla-breach')  prs = prs.filter(p => slaStatus(p.createdAt) === 'breach')
-      else if (activeFilter.value !== 'all')         prs = prs.filter(p => p.reviewStatus === activeFilter.value)
+      let prs: PullRequest[] = entry;
+      if (activeFilter.value === "sla-warn")
+        prs = prs.filter((p) => slaStatus(p.createdAt) === "warning");
+      else if (activeFilter.value === "sla-breach")
+        prs = prs.filter((p) => slaStatus(p.createdAt) === "breach");
+      else if (activeFilter.value !== "all")
+        prs = prs.filter((p) => p.reviewStatus === activeFilter.value);
       if (staleOnly.value)
-        prs = prs.filter(p => Date.now() - p.createdAt.getTime() > 7 * 86_400_000)
+        prs = prs.filter(
+          (p) => Date.now() - p.createdAt.getTime() > 7 * 86_400_000,
+        );
       if (selectedAuthors.value.length > 0)
-        prs = prs.filter(p => selectedAuthors.value.includes(p.author.login))
+        prs = prs.filter((p) => selectedAuthors.value.includes(p.author.login));
       if (searchQ.value) {
-        const q = searchQ.value.toLowerCase()
-        prs = prs.filter(p =>
-          p.title.toLowerCase().includes(q) ||
-          p.author.login.toLowerCase().includes(q) ||
-          String(p.number).includes(q),
-        )
+        const q = searchQ.value.toLowerCase();
+        prs = prs.filter(
+          (p) =>
+            p.title.toLowerCase().includes(q) ||
+            p.author.login.toLowerCase().includes(q) ||
+            String(p.number).includes(q),
+        );
       }
-      return { repo, prs, error: null }
+      return { repo, prs, error: null };
     }),
-)
+);
 
 const anyVisible = computed(() =>
-  filteredGroups.value.some(g => g.prs.length > 0 || g.error !== null),
-)
+  filteredGroups.value.some((g) => g.prs.length > 0 || g.error !== null),
+);
 
 // ── data loading ──────────────────────────────────────────────────
 async function loadAll(isRefresh = false): Promise<void> {
-  loading.value = true
-  const results = await Promise.allSettled(repoList.value.map(fetchRepo))
-  let anyOk = false
+  loading.value = true;
+  const results = await Promise.allSettled(repoList.value.map(fetchRepo));
+  let anyOk = false;
 
   for (let i = 0; i < results.length; i++) {
-    const repo = repoList.value[i]!
-    const r    = results[i]!
+    const repo = repoList.value[i]!;
+    const r = results[i]!;
 
-    if (r.status === 'fulfilled') {
-      const fresh = r.value
-      anyOk = true
+    if (r.status === "fulfilled") {
+      const fresh = r.value;
+      anyOk = true;
 
       // Annotate each PR with its SLA row CSS class
       for (const p of fresh) {
-        const s = slaStatus(p.createdAt)
-        p._slaRowCss = s === 'breach' ? 'row-sla-breach' : s === 'warning' ? 'row-sla-warning' : ''
+        const s = slaStatus(p.createdAt);
+        p._slaRowCss =
+          s === "breach"
+            ? "row-sla-breach"
+            : s === "warning"
+              ? "row-sla-warning"
+              : "";
       }
 
       if (isRefresh && knownIds.value[repo]) {
-        const prevIds  = knownIds.value[repo]!
-        const freshIds = new Set(fresh.map(p => p.id))
+        const prevIds = knownIds.value[repo]!;
+        const freshIds = new Set(fresh.map((p) => p.id));
 
         for (const p of fresh) {
           if (!prevIds.has(p.id)) {
-            playNewPR()
-            addToast('new', '🔔', 'New pull request', `${repo} #${p.number}: ${p.title}`)
-            await nextTick()
-            p._flashClass = 'flash-new'
-            setTimeout(() => { p._flashClass = '' }, 900)
+            playNewPR();
+            addToast(
+              "new",
+              "🔔",
+              "New pull request",
+              `${repo} #${p.number}: ${p.title}`,
+            );
+            await nextTick();
+            p._flashClass = "flash-new";
+            setTimeout(() => {
+              p._flashClass = "";
+            }, 900);
           }
         }
 
         for (const id of prevIds) {
           if (!freshIds.has(id)) {
-            const existing = prData.value[repo]
-            const prev = Array.isArray(existing) ? existing.find(p => p.id === id) : undefined
+            const existing = prData.value[repo];
+            const prev = Array.isArray(existing)
+              ? existing.find((p) => p.id === id)
+              : undefined;
             if (prev) {
-              void checkIfMerged(repo, prev.number).then(merged => {
+              void checkIfMerged(repo, prev.number).then((merged) => {
                 if (merged) {
-                  playMerged()
-                  addToast('merged', '🎉', 'PR merged!', `${repo} #${prev.number}: ${prev.title}`)
+                  playMerged();
+                  addToast(
+                    "merged",
+                    "🎉",
+                    "PR merged!",
+                    `${repo} #${prev.number}: ${prev.title}`,
+                  );
                 }
-              })
+              });
             }
           }
         }
       }
 
-      knownIds.value[repo] = new Set(fresh.map(p => p.id))
-      prData.value[repo]   = fresh
+      knownIds.value[repo] = new Set(fresh.map((p) => p.id));
+      prData.value[repo] = fresh;
     } else {
-      const msg = r.reason instanceof Error ? r.reason.message : 'Failed to load'
-      prData.value[repo] = { error: msg }
+      const msg =
+        r.reason instanceof Error ? r.reason.message : "Failed to load";
+      prData.value[repo] = { error: msg };
     }
   }
 
   if (!isRefresh && !anyOk) {
-    const first = results[0]
-    const msg = first?.status === 'rejected' && first.reason instanceof Error
-      ? first.reason.message : 'Failed to connect'
-    throw new Error(msg)
+    const first = results[0];
+    const msg =
+      first?.status === "rejected" && first.reason instanceof Error
+        ? first.reason.message
+        : "Failed to connect";
+    throw new Error(msg);
   }
 
-  loading.value     = false
-  lastUpdated.value = new Date().toLocaleTimeString()
+  loading.value = false;
+  lastUpdated.value = new Date().toLocaleTimeString();
 }
 
 async function loadActivity(): Promise<void> {
-  activityData.value.activityLoading = true
-  const results = await Promise.allSettled(repoList.value.map(fetchRecentActivity))
-  let totalCreated = 0, totalMerged = 0, totalLeadMs = 0, mergedWithTime = 0
+  activityData.value.activityLoading = true;
+  const results = await Promise.allSettled(
+    repoList.value.map(fetchRecentActivity),
+  );
+  let totalCreated = 0,
+    totalMerged = 0,
+    totalLeadMs = 0,
+    mergedWithTime = 0;
 
   for (const r of results) {
-    if (r.status === 'fulfilled') {
-      const { created7d, merged7d, avgLeadTimeHours } = r.value
-      totalCreated += created7d
-      totalMerged  += merged7d
+    if (r.status === "fulfilled") {
+      const { created7d, merged7d, avgLeadTimeHours } = r.value;
+      totalCreated += created7d;
+      totalMerged += merged7d;
       if (avgLeadTimeHours !== null) {
-        totalLeadMs    += avgLeadTimeHours * 3_600_000 * merged7d
-        mergedWithTime += merged7d
+        totalLeadMs += avgLeadTimeHours * 3_600_000 * merged7d;
+        mergedWithTime += merged7d;
       }
     }
   }
 
   activityData.value = {
-    created7d:        totalCreated,
-    merged7d:         totalMerged,
-    avgLeadTimeHours: mergedWithTime > 0 ? totalLeadMs / mergedWithTime / 3_600_000 : null,
-    activityLoading:  false,
-  }
+    created7d: totalCreated,
+    merged7d: totalMerged,
+    avgLeadTimeHours:
+      mergedWithTime > 0 ? totalLeadMs / mergedWithTime / 3_600_000 : null,
+    activityLoading: false,
+  };
 }
 
 async function connect(newToken: string, newRepos: string): Promise<void> {
-  setupError.value = ''
+  setupError.value = "";
   if (!newToken || !newRepos.trim()) {
-    setupError.value = 'Please enter a token and at least one repository.'
-    return
+    setupError.value = "Please enter a token and at least one repository.";
+    return;
   }
-  token.value = newToken
-  saveRepos(newRepos)
-  loading.value = true
+  token.value = newToken;
+  saveRepos(newRepos);
+  loading.value = true;
   try {
-    await loadAll(false)
-    void loadActivity()
-    connected.value = true
-    startPolling()
+    await loadAll(false);
+    void loadActivity();
+    connected.value = true;
+    startPolling();
   } catch (e) {
-    setupError.value = e instanceof Error ? e.message : 'Unknown error'
+    setupError.value = e instanceof Error ? e.message : "Unknown error";
   }
-  loading.value = false
+  loading.value = false;
 }
 
 async function refreshAll(): Promise<void> {
-  if (!loading.value) { await loadAll(true); void loadActivity() }
+  if (!loading.value) {
+    await loadAll(true);
+    void loadActivity();
+  }
 }
 
-async function handleSaveSettings(newToken: string, newRepos: string): Promise<void> {
-  showSettings.value    = false
-  token.value           = newToken || ENV_TOKEN
-  saveRepos(newRepos)
-  prData.value          = {}
-  knownIds.value        = {}
-  selectedRepos.value   = []
-  selectedAuthors.value = []
-  activityData.value    = { created7d: null, merged7d: null, avgLeadTimeHours: null, activityLoading: true }
-  await loadAll(false)
-  void loadActivity()
-  startPolling()
+async function handleSaveSettings(
+  newToken: string,
+  newRepos: string,
+): Promise<void> {
+  showSettings.value = false;
+  token.value = newToken || ENV_TOKEN;
+  saveRepos(newRepos);
+  prData.value = {};
+  knownIds.value = {};
+  selectedRepos.value = [];
+  selectedAuthors.value = [];
+  activityData.value = {
+    created7d: null,
+    merged7d: null,
+    avgLeadTimeHours: null,
+    activityLoading: true,
+  };
+  await loadAll(false);
+  void loadActivity();
+  startPolling();
 }
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 function startPolling(): void {
-  if (pollTimer !== null) clearInterval(pollTimer)
-  pollTimer = setInterval(() => { void loadAll(true); void loadActivity() }, 60_000)
+  if (pollTimer !== null) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    void loadAll(true);
+    void loadActivity();
+  }, 60_000);
 }
-onUnmounted(() => { if (pollTimer !== null) clearInterval(pollTimer) })
+onUnmounted(() => {
+  if (pollTimer !== null) clearInterval(pollTimer);
+});
 
 // Auto-connect on mount if token + repos are already available
 if (canAutoConnect) {
-  void connect(ENV_TOKEN, reposText.value)
+  void connect(ENV_TOKEN, reposText.value);
 }
 </script>
 
 <template>
-
   <!-- ── Setup ───────────────────────────────────────────────── -->
   <SetupScreen
     v-if="!connected"
@@ -287,7 +368,6 @@ if (canAutoConnect) {
 
   <!-- ── Dashboard ───────────────────────────────────────────── -->
   <template v-else>
-
     <Topbar
       :stat-open="statOpen"
       :stat-approved="statApproved"
@@ -340,22 +420,32 @@ if (canAutoConnect) {
           :comment-fire-threshold="COMMENT_FIRE_THRESHOLD"
         />
 
-        <div v-if="!anyVisible" class="flex flex-col items-center justify-center gap-2 py-20">
+        <div
+          v-if="!anyVisible"
+          class="flex flex-col items-center justify-center gap-2 py-20"
+        >
           <CheckCircle2 class="h-8 w-8 text-muted-foreground/30" />
-          <p class="text-sm font-medium text-muted-foreground">No matching pull requests</p>
-          <p class="font-mono text-[11px] text-muted-foreground/50">Adjust filters or wait for new activity</p>
+          <p class="text-sm font-medium text-muted-foreground">
+            No matching pull requests
+          </p>
+          <p class="font-mono text-[11px] text-muted-foreground/50">
+            Adjust filters or wait for new activity
+          </p>
         </div>
       </template>
     </main>
 
-    <footer class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground/40 text-right">
+    <footer
+      class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground/40 text-right"
+    >
       Pulldog · auto-refresh every 60s
     </footer>
 
     <!-- Toasts -->
     <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end">
       <Transition
-        v-for="t in toasts" :key="t.id"
+        v-for="t in toasts"
+        :key="t.id"
         enter-active-class="transition duration-300 ease-out"
         enter-from-class="opacity-0 translate-y-3 scale-95"
         enter-to-class="opacity-100 translate-y-0 scale-100"
@@ -366,12 +456,18 @@ if (canAutoConnect) {
         <Card
           v-if="!t.out"
           class="flex items-center gap-3 px-4 py-3 min-w-[240px] max-w-sm shadow-xl"
-          :class="t.type === 'merged' ? 'border-purple-500/30' : 'border-primary/30'"
+          :class="
+            t.type === 'merged' ? 'border-purple-500/30' : 'border-primary/30'
+          "
         >
           <span class="text-base shrink-0">{{ t.icon }}</span>
           <div class="flex-1 min-w-0">
-            <div class="font-semibold text-foreground text-xs">{{ t.title }}</div>
-            <div class="font-mono text-[10.5px] text-muted-foreground truncate">{{ t.sub }}</div>
+            <div class="font-semibold text-foreground text-xs">
+              {{ t.title }}
+            </div>
+            <div class="font-mono text-[10.5px] text-muted-foreground truncate">
+              {{ t.sub }}
+            </div>
           </div>
         </Card>
       </Transition>
@@ -385,7 +481,5 @@ if (canAutoConnect) {
       @close="showSettings = false"
       @save="handleSaveSettings"
     />
-
   </template>
-
 </template>
