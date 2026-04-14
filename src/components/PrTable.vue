@@ -39,6 +39,22 @@ const STATUS_BADGE_VARIANT: Partial<Record<ReviewStatus, BadgeVariant>> = {
 function statusLabel(pr: PullRequest): string {
   return STATUS_LABELS[pr.reviewStatus] ?? "Open";
 }
+function verboseAge(d: Date): string {
+  const ms = Date.now() - d.getTime();
+  const totalMin = Math.floor(ms / 60_000);
+  if (totalMin < 1) return "just now";
+  if (totalMin < 60) return `${totalMin} minute${totalMin === 1 ? "" : "s"} ago`;
+  const totalH = Math.floor(ms / 3_600_000);
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  if (totalH < 24) {
+    const base = `${totalH} hour${totalH === 1 ? "" : "s"}`;
+    return mins === 0 ? `${base} ago` : `${base} and ${mins} minute${mins === 1 ? "" : "s"} ago`;
+  }
+  const days = Math.floor(ms / 86_400_000);
+  const hrs = Math.floor((ms % 86_400_000) / 3_600_000);
+  const base = `${days} day${days === 1 ? "" : "s"}`;
+  return hrs === 0 ? `${base} ago` : `${base} and ${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+}
 function ageText(d: Date): string {
   const m = (Date.now() - d.getTime()) / 60_000;
   if (m < 60) return `${Math.floor(m)}m`;
@@ -164,8 +180,8 @@ function openPR(url: string): void {
             >
               {{ pr.title }}
             </a>
-            <span class="font-mono text-[10px] text-muted-foreground">
-              #{{ pr.number }}
+            <span class="font-mono text-[10px] text-muted-foreground/60">
+              #{{ pr.number }} · <span :title="pr.createdAt.toISOString()">{{ verboseAge(pr.createdAt) }}</span>
             </span>
           </td>
 

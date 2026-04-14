@@ -16,12 +16,12 @@ import {
 defineProps<{
   statOpen: number;
   statApproved: number;
-
   statWarn: number;
   statBreach: number;
   soundEnabled: boolean;
   loading: boolean;
   lastUpdated: string;
+  testMode: boolean;
   onTestNewPr: () => void;
   onTestMerged: () => void;
 }>();
@@ -127,51 +127,31 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
     </div>
   </header>
 
-  <!-- Sound status strip -->
+  <!-- Test buttons (shown only in test mode) -->
   <div
-    class="flex items-center gap-2.5 border-b border-border bg-card px-5 py-2"
+    v-if="testMode"
+    class="flex items-center gap-1.5 border-b border-border bg-card px-5 py-2"
   >
-    <span class="relative flex h-2 w-2">
-      <span
-        v-if="soundEnabled"
-        class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping"
-      />
-      <span
-        class="relative inline-flex rounded-full h-2 w-2"
-        :class="soundEnabled ? 'bg-emerald-400' : 'bg-muted-foreground/30'"
-      />
+    <span class="font-mono text-[10px] text-muted-foreground/40 mr-0.5">
+      test:
     </span>
-    <span class="font-mono text-xs text-muted-foreground">
-      {{
-        soundEnabled
-          ? "Sound alerts active — chime on new PR · gong on merge"
-          : "Sound muted"
-      }}
-    </span>
-
-    <!-- Test buttons (always visible for easy access) -->
-    <div class="ml-auto flex items-center gap-1.5">
-      <span class="font-mono text-[10px] text-muted-foreground/40 mr-0.5">
-        test:
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        class="h-6 px-2 font-mono text-[10px]"
-        :disabled="!soundEnabled"
-        @click="onTestNewPr()"
-      >
-        🔔 new PR
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        class="h-6 px-2 font-mono text-[10px]"
-        :disabled="!soundEnabled"
-        @click="onTestMerged()"
-      >
-        🎉 merge
-      </Button>
-    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-6 px-2 font-mono text-[10px]"
+      :disabled="!soundEnabled"
+      @click="onTestNewPr()"
+    >
+      🔔 new PR
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-6 px-2 font-mono text-[10px]"
+      :disabled="!soundEnabled"
+      @click="onTestMerged()"
+    >
+      🎉 merge
+    </Button>
   </div>
 </template>

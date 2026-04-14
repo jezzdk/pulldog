@@ -6,12 +6,7 @@ import { slaStatus } from "@/composables/useSla";
 import { useTheme } from "@/composables/useTheme";
 import { usePersistedRepos } from "@/composables/usePersistedRepos";
 import { usePersistedToken } from "@/composables/usePersistedToken";
-import type {
-  PullRequest,
-  ActivityMetrics,
-  Toast,
-  FilteredGroup,
-} from "@/types";
+import type { PullRequest, Toast, FilteredGroup } from "@/types";
 
 import SetupScreen from "@/components/SetupScreen.vue";
 import Topbar from "@/components/Topbar.vue";
@@ -30,9 +25,10 @@ useTheme();
 const COMMENT_FIRE_THRESHOLD = Number(
   import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10,
 );
+const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
 
 // ── persisted repos + token ───────────────────────────────────────
-const { reposText, repoList, saveList } = usePersistedRepos();
+const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 
 // ── session state ─────────────────────────────────────────────────
@@ -57,13 +53,14 @@ const searchQ = ref("");
 const selectedRepos = ref<string[]>([]);
 const selectedAuthors = ref<string[]>([]);
 
-// ── activity metrics ──────────────────────────────────────────────
-const activityData = ref<ActivityMetrics>({
-  created7d: null,
-  merged7d: null,
-  avgLeadTimeHours: null,
-  activityLoading: true,
-});
+// ── activity metrics (stored per-repo so filters can reaggregate) ─
+type RepoActivity = {
+  created7d: number;
+  merged7d: number;
+  avgLeadTimeHours: number | null;
+};
+const activityByRepo = ref<Record<string, RepoActivity>>({});
+const activityLoading = ref(true);
 
 // ── toasts ────────────────────────────────────────────────────────
 const toasts = ref<Toast[]>([]);
@@ -116,14 +113,33 @@ const authorAvatars = computed<Record<string, string>>(() => {
   return map;
 });
 
-const totalOpen = computed(() => allPRs.value.filter((p) => !p.draft).length);
+// PRs filtered by repo + author only — used for stats so they aren't
+// affected by the status/stale/search filters applied to the table.
+const baseFilteredPRs = computed<PullRequest[]>(() =>
+  repoList.value
+    .filter(
+      (repo) =>
+        selectedRepos.value.length === 0 || selectedRepos.value.includes(repo),
+    )
+    .flatMap((repo) => {
+      const entry = prData.value[repo];
+      if (!Array.isArray(entry)) return [];
+      const prs = entry as PullRequest[];
+      return selectedAuthors.value.length > 0
+        ? prs.filter((p) => selectedAuthors.value.includes(p.author.login))
+        : prs;
+    }),
+);
+
+const totalOpen = computed(
+  () => baseFilteredPRs.value.filter((p) => !p.draft).length,
+);
 const statOpen = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
 );
 const statApproved = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "approved").length,
 );
-
 const statWarn = computed(
   () =>
     allPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "warning")
@@ -134,6 +150,38 @@ const statBreach = computed(
     allPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "breach")
       .length,
 );
+
+const filteredActivity = computed(() => {
+  const loaded = Object.keys(activityByRepo.value);
+  if (loaded.length === 0)
+    return { created7d: null as number | null, merged7d: null as number | null, avgLeadTimeHours: null as number | null };
+
+  const activeRepos =
+    selectedRepos.value.length > 0
+      ? selectedRepos.value.filter((r) => activityByRepo.value[r])
+      : loaded;
+
+  let totalCreated = 0,
+    totalMerged = 0,
+    totalLeadMs = 0,
+    mergedWithTime = 0;
+  for (const repo of activeRepos) {
+    const a = activityByRepo.value[repo];
+    if (!a) continue;
+    totalCreated += a.created7d;
+    totalMerged += a.merged7d;
+    if (a.avgLeadTimeHours !== null) {
+      totalLeadMs += a.avgLeadTimeHours * 3_600_000 * a.merged7d;
+      mergedWithTime += a.merged7d;
+    }
+  }
+  return {
+    created7d: totalCreated as number | null,
+    merged7d: totalMerged as number | null,
+    avgLeadTimeHours:
+      mergedWithTime > 0 ? totalLeadMs / mergedWithTime / 3_600_000 : null,
+  };
+});
 
 const filteredGroups = computed<FilteredGroup[]>(() =>
   repoList.value
@@ -290,34 +338,19 @@ async function loadAll(isRefresh = false): Promise<void> {
 }
 
 async function loadActivity(): Promise<void> {
-  activityData.value.activityLoading = true;
+  activityLoading.value = true;
   const results = await Promise.allSettled(
-    repoList.value.map(fetchRecentActivity),
+    repoList.value.map(async (repo) => ({
+      repo,
+      metrics: await fetchRecentActivity(repo),
+    })),
   );
-  let totalCreated = 0,
-    totalMerged = 0,
-    totalLeadMs = 0,
-    mergedWithTime = 0;
-
+  const updated = { ...activityByRepo.value };
   for (const r of results) {
-    if (r.status === "fulfilled") {
-      const { created7d, merged7d, avgLeadTimeHours } = r.value;
-      totalCreated += created7d;
-      totalMerged += merged7d;
-      if (avgLeadTimeHours !== null) {
-        totalLeadMs += avgLeadTimeHours * 3_600_000 * merged7d;
-        mergedWithTime += merged7d;
-      }
-    }
+    if (r.status === "fulfilled") updated[r.value.repo] = r.value.metrics;
   }
-
-  activityData.value = {
-    created7d: totalCreated,
-    merged7d: totalMerged,
-    avgLeadTimeHours:
-      mergedWithTime > 0 ? totalLeadMs / mergedWithTime / 3_600_000 : null,
-    activityLoading: false,
-  };
+  activityByRepo.value = updated;
+  activityLoading.value = false;
 }
 
 async function connect(newRepos: string[], newToken?: string): Promise<void> {
@@ -368,12 +401,8 @@ async function handleSaveSettings(
   knownIds.value = {};
   selectedRepos.value = [];
   selectedAuthors.value = [];
-  activityData.value = {
-    created7d: null,
-    merged7d: null,
-    avgLeadTimeHours: null,
-    activityLoading: true,
-  };
+  activityByRepo.value = {};
+  activityLoading.value = true;
   await loadAll(false);
   void loadActivity();
   startPolling();
@@ -420,19 +449,12 @@ if (canAutoConnect) {
       :sound-enabled="soundEnabled"
       :loading="loading"
       :last-updated="lastUpdated"
+      :test-mode="TEST_MODE"
       :on-test-new-pr="playNewPR"
       :on-test-merged="playMerged"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
       @open-settings="showSettings = true"
-    />
-
-    <SummaryBar
-      :total-open="totalOpen"
-      :created7d="activityData.created7d"
-      :merged7d="activityData.merged7d"
-      :avg-lead-time-hours="activityData.avgLeadTimeHours"
-      :loading="activityData.activityLoading"
     />
 
     <FilterBar
@@ -444,6 +466,14 @@ if (canAutoConnect) {
       :repo-options="repoOptions"
       :author-options="authorOptions"
       :author-avatars="authorAvatars"
+    />
+
+    <SummaryBar
+      :total-open="totalOpen"
+      :created7d="filteredActivity.created7d"
+      :merged7d="filteredActivity.merged7d"
+      :avg-lead-time-hours="filteredActivity.avgLeadTimeHours"
+      :loading="activityLoading"
     />
 
     <!-- PR groups -->
