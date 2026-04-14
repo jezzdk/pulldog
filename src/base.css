@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ── Light mode (default) ──────────────────────────────────── */
+  :root {
+    --background:          0 0% 99%;
+    --foreground:          222 25% 18%;
+
+    --card:                0 0% 100%;
+    --card-foreground:     222 25% 15%;
+
+    --popover:             0 0% 100%;
+    --popover-foreground:  222 25% 15%;
+
+    --primary:             217 85% 52%;
+    --primary-foreground:  0 0% 100%;
+
+    --secondary:           220 16% 94%;
+    --secondary-foreground:222 20% 35%;
+
+    --muted:               220 16% 94%;
+    --muted-foreground:    220 12% 52%;
+
+    --accent:              217 85% 52%;
+    --accent-foreground:   0 0% 100%;
+
+    --destructive:         0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:              220 16% 88%;
+    --input:               220 16% 88%;
+    --ring:                217 85% 52%;
+
+    --radius:              0.4rem;
+
+    /* Semantic status colours */
+    --color-green:         142 60% 38%;
+    --color-yellow:        38 90% 44%;
+    --color-orange:        25 85% 46%;
+    --color-purple:        258 60% 55%;
+    --color-sla-warn:      38 90% 44%;
+    --color-sla-breach:    0 72% 52%;
+  }
+
+  /* ── Dark mode ─────────────────────────────────────────────── */
+  .dark {
+    --background:          222 24% 6%;
+    --foreground:          215 20% 82%;
+
+    --card:                222 22% 9%;
+    --card-foreground:     215 20% 88%;
+
+    --popover:             222 22% 10%;
+    --popover-foreground:  215 20% 88%;
+
+    --primary:             217 89% 65%;
+    --primary-foreground:  0 0% 100%;
+
+    --secondary:           222 20% 14%;
+    --secondary-foreground:215 15% 65%;
+
+    --muted:               222 20% 14%;
+    --muted-foreground:    215 15% 45%;
+
+    --accent:              217 89% 65%;
+    --accent-foreground:   0 0% 100%;
+
+    --destructive:         0 72% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:              222 22% 14%;
+    --input:               222 22% 14%;
+    --ring:                217 89% 65%;
+
+    /* Semantic status colours */
+    --color-green:         142 69% 58%;
+    --color-yellow:        43 90% 59%;
+    --color-orange:        28 85% 59%;
+    --color-purple:        258 73% 72%;
+    --color-sla-warn:      43 90% 59%;
+    --color-sla-breach:    0 72% 60%;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    @apply bg-background text-foreground;
+    font-family: 'Geist', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+}
+
+/* ── Status dot colours ─────────────────────────────────── */
+.dot-open     { background-color: hsl(var(--primary));      box-shadow: 0 0 6px hsl(var(--primary) / 0.6); }
+.dot-approved { background-color: hsl(var(--color-green));  box-shadow: 0 0 6px hsl(var(--color-green) / 0.6); }
+.dot-failing  { background-color: hsl(var(--destructive));  box-shadow: 0 0 6px hsl(var(--destructive) / 0.6); }
+.dot-pending  { background-color: hsl(var(--color-yellow)); box-shadow: 0 0 6px hsl(var(--color-yellow) / 0.6); }
+.dot-changes  { background-color: hsl(var(--color-orange)); box-shadow: 0 0 6px hsl(var(--color-orange) / 0.6); }
+.dot-draft    { background-color: hsl(var(--muted-foreground)); }
+
+/* ── SLA row highlights ─────────────────────────────────── */
+.row-sla-warning {
+  background: linear-gradient(90deg, hsl(var(--color-sla-warn) / 0.07) 0%, transparent 60%);
+  border-left: 2px solid hsl(var(--color-sla-warn) / 0.55) !important;
+}
+.row-sla-breach {
+  background: linear-gradient(90deg, hsl(var(--color-sla-breach) / 0.08) 0%, transparent 60%);
+  border-left: 2px solid hsl(var(--color-sla-breach) / 0.65) !important;
+}
+
+/* ── Row flash animations ───────────────────────────────── */
+@keyframes newFlash {
+  0%   { background-color: hsl(var(--primary) / 0.15); }
+  100% { background-color: transparent; }
+}
+@keyframes mergeFlash {
+  0%   { background-color: hsl(var(--color-purple) / 0.18); }
+  100% { background-color: transparent; }
+}
+.flash-new    { animation: newFlash 0.8s ease-out; }
+.flash-merged { animation: mergeFlash 1.2s ease-out; }
+
+/* ── Shimmer skeleton ───────────────────────────────────── */
+.skeleton {
+  display: inline-block;
+  border-radius: 3px;
+  background: linear-gradient(90deg, hsl(var(--border)) 25%, hsl(var(--secondary)) 50%, hsl(var(--border)) 75%);
+  background-size: 200% 100%;
+  @apply animate-shimmer;
+}
