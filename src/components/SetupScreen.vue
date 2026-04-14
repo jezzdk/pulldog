@@ -4,7 +4,7 @@ import Card from "@/components/ui/Card.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
-import { RefreshCw, Zap, Lock, Search, AlertCircle } from "lucide-vue-next";
+import { RefreshCw, Zap, Lock, Search, AlertCircle, ChevronDown } from "lucide-vue-next";
 
 const props = defineProps<{
   hasEnvToken: boolean;
@@ -28,6 +28,7 @@ type Step = "token" | "loading" | "repos" | "error";
 const step = ref<Step>(hasExistingToken.value ? "loading" : "token");
 
 const tokenInput = ref(props.initialToken);
+const tokenGuideOpen = ref(false);
 const availableRepos = ref<string[]>([]);
 const selectedRepos = ref<string[]>([...props.initialSelected]);
 const search = ref("");
@@ -124,18 +125,70 @@ onMounted(() => {
         <!-- ── Step: Token input ── -->
         <template v-if="step === 'token'">
           <div class="space-y-1.5">
-            <Label>GitHub Token</Label>
+            <div class="flex items-center justify-between">
+              <Label>GitHub Token</Label>
+              <button
+                type="button"
+                class="flex items-center gap-1 font-mono text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
+                @click="tokenGuideOpen = !tokenGuideOpen"
+              >
+                How to create one
+                <ChevronDown
+                  class="h-3 w-3 transition-transform duration-200"
+                  :class="tokenGuideOpen ? 'rotate-180' : ''"
+                />
+              </button>
+            </div>
+
+            <!-- Token creation guide -->
+            <div
+              v-if="tokenGuideOpen"
+              class="rounded-md border border-border bg-muted/30 px-3.5 py-3 space-y-2.5"
+            >
+              <p class="font-mono text-[10.5px] font-semibold text-foreground/80 uppercase tracking-widest">
+                Fine-grained token (recommended)
+              </p>
+              <ol class="space-y-1.5 list-none">
+                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <span class="shrink-0 text-primary font-semibold">1.</span>
+                  <span>
+                    Open
+                    <a
+                      href="https://github.com/settings/personal-access-tokens/new"
+                      target="_blank"
+                      class="text-primary hover:underline"
+                    >github.com → Settings → Developer settings → Fine-grained tokens</a>
+                  </span>
+                </li>
+                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <span class="shrink-0 text-primary font-semibold">2.</span>
+                  <span>Give the token a name and set an expiry date.</span>
+                </li>
+                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <span class="shrink-0 text-primary font-semibold">3.</span>
+                  <span>Under <em class="text-foreground/70 not-italic font-medium">Repository access</em>, select the repos you want to monitor.</span>
+                </li>
+                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <span class="shrink-0 text-primary font-semibold">4.</span>
+                  <span>
+                    Under <em class="text-foreground/70 not-italic font-medium">Permissions → Repository permissions</em>,
+                    set <em class="text-foreground/70 not-italic font-medium">Pull requests</em> to
+                    <span class="text-foreground/80 font-semibold">Read-only</span>.
+                  </span>
+                </li>
+                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <span class="shrink-0 text-primary font-semibold">5.</span>
+                  <span>Click <em class="text-foreground/70 not-italic font-medium">Generate token</em> and paste it below.</span>
+                </li>
+              </ol>
+            </div>
+
             <Input
               v-model="tokenInput"
               type="password"
               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
               @keydown.enter="handleConnect"
             />
-            <p class="font-mono text-[10.5px] text-muted-foreground">
-              Needs
-              <code class="text-foreground/70">repo</code>
-              scope. Saved to localStorage — never sent to any server.
-            </p>
           </div>
 
           <div
