@@ -15,11 +15,12 @@ import type {
 import SetupScreen from "@/components/SetupScreen.vue";
 import Topbar from "@/components/Topbar.vue";
 import FilterBar from "@/components/FilterBar.vue";
-import RepoGroup from "@/components/RepoGroup.vue";
+import PrTable from "@/components/PrTable.vue";
 import SettingsDialog from "@/components/SettingsDialog.vue";
 import SummaryBar from "@/components/SummaryBar.vue";
+import Badge from "@/components/ui/Badge.vue";
 import Card from "@/components/ui/Card.vue";
-import { CheckCircle2, RefreshCw } from "lucide-vue-next";
+import { CheckCircle2, GitPullRequest, RefreshCw } from "lucide-vue-next";
 
 // ── theme (boot before render) ────────────────────────────────────
 useTheme();
@@ -109,6 +110,14 @@ const authorOptions = computed<string[]>(() => {
   return [...logins].sort((a, b) => a.localeCompare(b));
 });
 
+const authorAvatars = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {};
+  for (const p of allPRs.value) {
+    map[p.author.login] = p.author.avatar_url;
+  }
+  return map;
+});
+
 const totalOpen = computed(
   () => allPRs.value.filter((p) => !p.draft).length,
 );
@@ -180,6 +189,12 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
       }
       return { repo, prs, error: null };
     }),
+);
+
+const allFilteredPrs = computed<PullRequest[]>(() =>
+  filteredGroups.value
+    .flatMap((g) => g.prs)
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
 );
 
 const anyVisible = computed(() =>
@@ -418,6 +433,7 @@ if (canAutoConnect) {
       v-model:selected-authors="selectedAuthors"
       :repo-options="repoOptions"
       :author-options="authorOptions"
+      :author-avatars="authorAvatars"
     />
 
     <!-- PR groups -->
@@ -431,13 +447,37 @@ if (canAutoConnect) {
       </div>
 
       <template v-else>
-        <RepoGroup
-          v-for="group in filteredGroups"
-          :key="group.repo"
-          :repo="group.repo"
-          :prs="group.prs"
-          :error="group.error"
+        <!-- Repo summary chips -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <div
+            v-for="group in filteredGroups"
+            :key="group.repo"
+            class="flex items-center gap-1.5"
+          >
+            <GitPullRequest class="h-3 w-3 text-muted-foreground shrink-0" />
+            <a
+              :href="'https://github.com/' + group.repo"
+              target="_blank"
+              class="font-mono text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+              >{{ group.repo }}</a
+            >
+            <Badge variant="secondary" class="text-[10px] px-1.5 py-0">{{
+              group.prs.length
+            }}</Badge>
+            <span
+              v-if="group.error"
+              class="font-mono text-[11px] text-destructive"
+              >⚠ {{ group.error }}</span
+            >
+          </div>
+        </div>
+
+        <!-- Unified PR table -->
+        <PrTable
+          v-if="allFilteredPrs.length"
+          :prs="allFilteredPrs"
           :comment-fire-threshold="COMMENT_FIRE_THRESHOLD"
+          :show-repo="true"
         />
 
         <div

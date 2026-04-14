@@ -10,7 +10,12 @@ const status = computed(() => (props.draft ? "ok" : slaStatus(props.createdAt)))
 const hoursOpen = computed(() =>
   Math.floor((Date.now() - props.createdAt.getTime()) / 3_600_000),
 );
+const hoursUntilBreach = computed(() => SLA.breachHours - hoursOpen.value);
 const overBy = computed(() => hoursOpen.value - SLA.breachHours);
+const overByLabel = computed(() => {
+  if (overBy.value < 48) return `+${overBy.value}h`;
+  return `+${Math.floor(overBy.value / 24)}d`;
+});
 </script>
 
 <template>
@@ -25,8 +30,8 @@ const overBy = computed(() => hoursOpen.value - SLA.breachHours);
     >
       <XCircle v-if="status === 'breach'" class="h-2.5 w-2.5" />
       <AlertTriangle v-else class="h-2.5 w-2.5" />
-      <span v-if="status === 'breach'">Breach +{{ overBy }}h</span>
-      <span v-else>Warn {{ hoursOpen }}h / {{ SLA.breachHours }}h</span>
+      <span v-if="status === 'breach'">Breach {{ overByLabel }}</span>
+      <span v-else>{{ hoursUntilBreach }}h left</span>
     </Badge>
   </div>
 </template>

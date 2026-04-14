@@ -8,10 +8,12 @@ const props = withDefaults(
     label: string;
     options?: string[];
     selected?: string[];
+    avatars?: Record<string, string>;
   }>(),
   {
     options: () => [],
     selected: () => [],
+    avatars: () => ({}),
   },
 );
 
@@ -125,6 +127,12 @@ onUnmounted(() => document.removeEventListener("mousedown", handleOutside));
                 />
               </svg>
             </span>
+            <img
+              v-if="avatars[opt]"
+              :src="avatars[opt] + '&s=32'"
+              :alt="opt"
+              class="h-4 w-4 rounded-full shrink-0 object-cover"
+            />
             <span class="font-mono text-[11px] text-foreground truncate">{{
               opt
             }}</span>

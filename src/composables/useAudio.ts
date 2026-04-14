@@ -8,8 +8,10 @@ interface UseAudioReturn {
   playMerged: () => void;
 }
 
+const STORAGE_KEY = "pulldog-sound";
+
 export function useAudio(): UseAudioReturn {
-  const soundEnabled = ref(false);
+  const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
   let audioCtx: AudioContext | null = null;
 
   function ctx(): AudioContext {
@@ -139,6 +141,7 @@ export function useAudio(): UseAudioReturn {
 
   function toggle(): void {
     soundEnabled.value = !soundEnabled.value;
+    localStorage.setItem(STORAGE_KEY, String(soundEnabled.value));
     if (soundEnabled.value) {
       try {
         void ctx().resume();

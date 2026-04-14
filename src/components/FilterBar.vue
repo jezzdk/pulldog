@@ -24,6 +24,7 @@ const props = defineProps<{
   searchQ: string;
   repoOptions: string[];
   authorOptions: string[];
+  authorAvatars: Record<string, string>;
   selectedRepos: string[];
   selectedAuthors: string[];
 }>();
@@ -97,6 +98,7 @@ function setFilter(v: string): void {
     <MultiSelect
       label="Author"
       :options="authorOptions"
+      :avatars="authorAvatars"
       :selected="selectedAuthors"
       @update:selected="emit('update:selectedAuthors', $event)"
     />

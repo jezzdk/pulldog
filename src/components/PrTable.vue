@@ -8,6 +8,7 @@ import type { PullRequest, ReviewStatus } from "@/types";
 defineProps<{
   prs: PullRequest[];
   commentFireThreshold: number;
+  showRepo?: boolean;
 }>();
 
 // ── display helpers ───────────────────────────────────────────────
@@ -81,6 +82,12 @@ function openPR(url: string): void {
             class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2"
           >
             Pull Request
+          </th>
+          <th
+            v-if="showRepo"
+            class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-32 hidden md:table-cell"
+          >
+            Repo
           </th>
           <th
             class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-32 hidden sm:table-cell"
@@ -159,6 +166,18 @@ function openPR(url: string): void {
             <span class="font-mono text-[10px] text-muted-foreground"
               >#{{ pr.number }}</span
             >
+          </td>
+
+          <!-- Repo -->
+          <td v-if="showRepo" class="px-3 py-2.5 hidden md:table-cell">
+            <a
+              :href="'https://github.com/' + pr.repo"
+              target="_blank"
+              @click.stop
+              class="font-mono text-[11px] text-muted-foreground hover:text-primary transition-colors"
+            >
+              {{ pr.repo.split("/")[1] }}
+            </a>
           </td>
 
           <!-- Author -->
