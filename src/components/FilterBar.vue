@@ -12,9 +12,8 @@ const FILTERS: FilterOption[] = [
   { v: "all", l: "All" },
   { v: "open", l: "Open" },
   { v: "approved", l: "Approved" },
-  { v: "failing", l: "Failing" },
-  { v: "draft", l: "Draft" },
   { v: "changes", l: "Changes" },
+  { v: "draft", l: "Draft" },
   { v: "sla-warn", l: "⚠ Warning" },
   { v: "sla-breach", l: "🔴 Breach" },
 ];

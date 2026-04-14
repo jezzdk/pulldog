@@ -3,11 +3,9 @@
 export type ReviewStatus =
   | "open"
   | "approved"
-  | "failing"
   | "draft"
   | "changes"
   | "merged";
-export type CheckStatus = "pass" | "fail" | "pending" | null;
 export type SlaStatus = "ok" | "warning" | "breach";
 export type Theme = "light" | "dark" | "system";
 
@@ -33,7 +31,6 @@ export interface PullRequest {
   requestedReviewers: GithubUser[];
   labels: GithubLabel[];
   reviewStatus: ReviewStatus;
-  checks: CheckStatus;
   commentCount: number;
   repo: string;
   _flashClass: string;

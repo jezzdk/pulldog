@@ -49,13 +49,16 @@ cp .env.example .env
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173), enter your GitHub token and the repositories you want to watch, then click **Connect**.
+Open [http://localhost:5173](http://localhost:5173), enter the repositories you want to watch, then click **Connect**.
 
 ## Configuration
 
 All configuration lives in `.env`. Copy `.env.example` to get started:
 
 ```env
+# GitHub Personal Access Token (repo scope required) — REQUIRED
+VITE_GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+
 # Hours until a PR row turns amber (SLA warning)
 VITE_SLA_WARNING_HOURS=24
 
@@ -68,7 +71,7 @@ VITE_COMMENT_FIRE_THRESHOLD=10
 
 > **Note:** Vite bakes `VITE_*` variables into the bundle at build time. Restart `npm run dev` after any change to `.env`.
 
-Your GitHub token is entered in the UI at runtime and is never stored beyond your browser session memory.
+`VITE_GITHUB_TOKEN` is required — the app will show an error on the setup screen if it is not set. The token is never written to `localStorage`; it lives only in the compiled bundle.
 
 ## Project structure
 

@@ -4,9 +4,9 @@ import { slaStatus, SLA } from "@/composables/useSla";
 import Badge from "@/components/ui/Badge.vue";
 import { AlertTriangle, XCircle } from "lucide-vue-next";
 
-const props = defineProps<{ createdAt: Date }>();
+const props = defineProps<{ createdAt: Date; draft: boolean }>();
 
-const status = computed(() => slaStatus(props.createdAt));
+const status = computed(() => (props.draft ? "ok" : slaStatus(props.createdAt)));
 const hoursOpen = computed(() =>
   Math.floor((Date.now() - props.createdAt.getTime()) / 3_600_000),
 );

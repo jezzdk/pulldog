@@ -125,6 +125,16 @@
   background-color: hsl(var(--muted-foreground));
 }
 
+/* ── Status row highlights ──────────────────────────────── */
+.row-approved {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--color-green) / 0.06) 0%,
+    transparent 60%
+  );
+  border-left: 2px solid hsl(var(--color-green) / 0.5) !important;
+}
+
 /* ── SLA row highlights ─────────────────────────────────── */
 .row-sla-warning {
   background: linear-gradient(

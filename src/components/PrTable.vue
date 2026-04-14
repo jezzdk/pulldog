@@ -3,7 +3,7 @@ import Badge from "@/components/ui/Badge.vue";
 import Avatar from "@/components/ui/Avatar.vue";
 import Tooltip from "@/components/ui/Tooltip.vue";
 import SlaIndicator from "@/components/SlaIndicator.vue";
-import type { PullRequest, ReviewStatus, CheckStatus } from "@/types";
+import type { PullRequest, ReviewStatus } from "@/types";
 
 defineProps<{
   prs: PullRequest[];
@@ -23,7 +23,6 @@ type BadgeVariant =
 const STATUS_LABELS: Record<ReviewStatus, string> = {
   open: "Open",
   approved: "Approved",
-  failing: "Failing",
   draft: "Draft",
   changes: "Changes",
   merged: "Merged",
@@ -32,29 +31,12 @@ const STATUS_LABELS: Record<ReviewStatus, string> = {
 const STATUS_BADGE_VARIANT: Partial<Record<ReviewStatus, BadgeVariant>> = {
   open: "default",
   approved: "success",
-  failing: "destructive",
   draft: "secondary",
   changes: "outline",
 };
 
-interface ChecksInfo {
-  variant: BadgeVariant;
-  label: string;
-}
-const CHECKS_MAP: Record<string, ChecksInfo> = {
-  pass: { variant: "success", label: "✓ Passing" },
-  fail: { variant: "destructive", label: "✗ Failing" },
-  pending: { variant: "warning", label: "⏳ Running" },
-};
-
 function statusLabel(pr: PullRequest): string {
   return STATUS_LABELS[pr.reviewStatus] ?? "Open";
-}
-function checksVariant(c: CheckStatus): BadgeVariant {
-  return (c ? CHECKS_MAP[c]?.variant : undefined) ?? "outline";
-}
-function checksLabel(c: CheckStatus): string {
-  return (c ? CHECKS_MAP[c]?.label : undefined) ?? "—";
 }
 function ageText(d: Date): string {
   const m = (Date.now() - d.getTime()) / 60_000;
@@ -116,11 +98,6 @@ function openPR(url: string): void {
             Reviewers
           </th>
           <th
-            class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-28 hidden md:table-cell"
-          >
-            Checks
-          </th>
-          <th
             class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-28 hidden lg:table-cell"
           >
             Labels
@@ -150,6 +127,7 @@ function openPR(url: string): void {
             'border-b border-border last:border-0 transition-colors cursor-pointer hover:bg-muted/20',
             pr._flashClass,
             pr._slaRowCss,
+            pr.reviewStatus === 'approved' ? 'row-approved' : '',
           ]"
           @click="openPR(pr.url)"
         >
@@ -231,13 +209,6 @@ function openPR(url: string): void {
             >
           </td>
 
-          <!-- Checks -->
-          <td class="px-3 py-2.5 hidden md:table-cell">
-            <Badge :variant="checksVariant(pr.checks)" class="text-[10px]">
-              {{ checksLabel(pr.checks) }}
-            </Badge>
-          </td>
-
           <!-- Labels -->
           <td class="px-3 py-2.5 hidden lg:table-cell">
             <div v-if="pr.labels.length" class="flex flex-wrap gap-1">
@@ -287,7 +258,7 @@ function openPR(url: string): void {
 
           <!-- SLA -->
           <td class="px-3 py-2.5">
-            <SlaIndicator :created-at="pr.createdAt" />
+            <SlaIndicator :created-at="pr.createdAt" :draft="pr.draft" />
           </td>
         </tr>
       </tbody>

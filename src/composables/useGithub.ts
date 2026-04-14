@@ -1,7 +1,7 @@
 // composables/useGithub.ts
 import type { ComputedRef } from "vue";
 import { slaStatus } from "@/composables/useSla";
-import type { PullRequest, ReviewStatus, CheckStatus } from "@/types";
+import type { PullRequest, ReviewStatus } from "@/types";
 
 interface GithubErrorBody {
   message?: string;
@@ -10,10 +10,6 @@ interface GithubErrorBody {
 interface GithubReview {
   state: string;
   user: { login: string };
-}
-
-interface GithubCheckRuns {
-  check_runs: Array<{ conclusion: string | null; status: string }>;
 }
 
 interface GithubRawPR {
@@ -64,49 +60,35 @@ export function useGithub(token: ComputedRef<string>) {
 
     return Promise.all(
       prs.map(async (pr): Promise<PullRequest> => {
-        let reviewStatus: ReviewStatus = "open";
-        let checks: CheckStatus = null;
+        // Draft is known from the PR itself — set before enrichment so it
+        // survives even if the API calls below fail.
+        let reviewStatus: ReviewStatus = pr.draft ? "draft" : "open";
+        let commentCount = 0;
 
-        try {
-          const [reviews, checkRuns] = await Promise.all([
-            gh<GithubReview[]>(
-              `/repos/${owner}/${repo}/pulls/${pr.number}/reviews`,
-            ),
-            gh<GithubCheckRuns>(
-              `/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`,
-            ),
-          ]);
+        const [reviewsRes, prDetailRes] = await Promise.allSettled([
+          gh<GithubReview[]>(
+            `/repos/${owner}/${repo}/pulls/${pr.number}/reviews`,
+          ),
+          gh<{ comments: number; review_comments: number }>(
+            `/repos/${owner}/${repo}/pulls/${pr.number}`,
+          ),
+        ]);
 
-          if (pr.draft) {
-            reviewStatus = "draft";
-          } else {
-            const latest: Record<string, string> = {};
-            for (const rv of reviews) {
-              if (rv.state !== "COMMENTED") latest[rv.user.login] = rv.state;
-            }
-            const states = Object.values(latest);
-            if (states.includes("CHANGES_REQUESTED")) reviewStatus = "changes";
-            else if (states.length && states.every((s) => s === "APPROVED"))
-              reviewStatus = "approved";
+        if (prDetailRes.status === "fulfilled") {
+          commentCount =
+            (prDetailRes.value.comments ?? 0) +
+            (prDetailRes.value.review_comments ?? 0);
+        }
+
+        if (reviewsRes.status === "fulfilled" && !pr.draft) {
+          const latest: Record<string, string> = {};
+          for (const rv of reviewsRes.value) {
+            if (rv.state !== "COMMENTED") latest[rv.user.login] = rv.state;
           }
-
-          const runs = (checkRuns.check_runs ?? []).map(
-            (r) => r.conclusion ?? r.status,
-          );
-          if (
-            runs.some((s) => ["failure", "cancelled", "timed_out"].includes(s))
-          ) {
-            checks = "fail";
-            if (!pr.draft) reviewStatus = "failing";
-          } else if (
-            runs.some((s) => ["in_progress", "queued", "pending"].includes(s))
-          ) {
-            checks = "pending";
-          } else if (runs.length) {
-            checks = "pass";
-          }
-        } catch (_) {
-          /* enrichment failed — show PR with basic info */
+          const states = Object.values(latest);
+          if (states.includes("CHANGES_REQUESTED")) reviewStatus = "changes";
+          else if (states.length && states.every((s) => s === "APPROVED"))
+            reviewStatus = "approved";
         }
 
         return {
@@ -121,8 +103,7 @@ export function useGithub(token: ComputedRef<string>) {
           requestedReviewers: pr.requested_reviewers ?? [],
           labels: pr.labels ?? [],
           reviewStatus,
-          checks,
-          commentCount: (pr.comments ?? 0) + (pr.review_comments ?? 0),
+          commentCount,
           repo: repoFull,
           _flashClass: "",
           _slaRowCss: "",

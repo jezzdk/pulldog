@@ -16,12 +16,14 @@ import {
 defineProps<{
   statOpen: number;
   statApproved: number;
-  statFailing: number;
+
   statWarn: number;
   statBreach: number;
   soundEnabled: boolean;
   loading: boolean;
   lastUpdated: string;
+  onTestNewPr: () => void;
+  onTestMerged: () => void;
 }>();
 
 defineEmits<{
@@ -48,9 +50,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       <div class="hidden sm:flex items-center gap-1.5">
         <Badge variant="default">{{ statOpen }} open</Badge>
         <Badge variant="success">{{ statApproved }} approved</Badge>
-        <Badge variant="destructive" v-if="statFailing > 0"
-          >{{ statFailing }} failing</Badge
-        >
+
         <Badge variant="warning" v-if="statWarn > 0"
           >⚠ {{ statWarn }} warn</Badge
         >
@@ -148,5 +148,30 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
           : "Sound muted"
       }}
     </span>
+
+    <!-- Test buttons (always visible for easy access) -->
+    <div class="ml-auto flex items-center gap-1.5">
+      <span class="font-mono text-[10px] text-muted-foreground/40 mr-0.5"
+        >test:</span
+      >
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-6 px-2 font-mono text-[10px]"
+        :disabled="!soundEnabled"
+        @click="onTestNewPr()"
+      >
+        🔔 new PR
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-6 px-2 font-mono text-[10px]"
+        :disabled="!soundEnabled"
+        @click="onTestMerged()"
+      >
+        🎉 merge
+      </Button>
+    </div>
   </div>
 </template>

@@ -2,37 +2,30 @@
 import { ref, watch } from "vue";
 import Dialog from "@/components/ui/Dialog.vue";
 import Button from "@/components/ui/Button.vue";
-import Input from "@/components/ui/Input.vue";
 import Textarea from "@/components/ui/Textarea.vue";
 import Label from "@/components/ui/Label.vue";
 
 const props = defineProps<{
   open: boolean;
-  currentToken: string;
   currentRepos: string;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  save: [token: string, repos: string];
+  save: [repos: string];
 }>();
 
-const token = ref(props.currentToken);
 const repos = ref(props.currentRepos);
 
-// Sync local copies when dialog opens
 watch(
   () => props.open,
   (open) => {
-    if (open) {
-      token.value = props.currentToken;
-      repos.value = props.currentRepos;
-    }
+    if (open) repos.value = props.currentRepos;
   },
 );
 
 function handleSave(): void {
-  emit("save", token.value, repos.value);
+  emit("save", repos.value);
 }
 </script>
 
@@ -40,15 +33,6 @@ function handleSave(): void {
   <Dialog :open="open" @close="$emit('close')">
     <div class="space-y-5">
       <h2 class="font-mono text-sm font-semibold text-foreground">Settings</h2>
-
-      <div class="space-y-1.5">
-        <Label>GitHub Token</Label>
-        <Input type="password" v-model="token" />
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          Leave blank to use
-          <code class="text-foreground/70">VITE_GITHUB_TOKEN</code> from .env
-        </p>
-      </div>
 
       <div class="space-y-1.5">
         <Label>Repositories</Label>

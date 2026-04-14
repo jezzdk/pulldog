@@ -109,21 +109,27 @@ const authorOptions = computed<string[]>(() => {
   return [...logins].sort((a, b) => a.localeCompare(b));
 });
 
-const totalOpen = computed(() => allPRs.value.length);
+const totalOpen = computed(
+  () => allPRs.value.filter((p) => !p.draft).length,
+);
 const statOpen = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
 );
 const statApproved = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "approved").length,
 );
-const statFailing = computed(
-  () => allPRs.value.filter((p) => p.reviewStatus === "failing").length,
-);
+
 const statWarn = computed(
-  () => allPRs.value.filter((p) => slaStatus(p.createdAt) === "warning").length,
+  () =>
+    allPRs.value.filter(
+      (p) => !p.draft && slaStatus(p.createdAt) === "warning",
+    ).length,
 );
 const statBreach = computed(
-  () => allPRs.value.filter((p) => slaStatus(p.createdAt) === "breach").length,
+  () =>
+    allPRs.value.filter(
+      (p) => !p.draft && slaStatus(p.createdAt) === "breach",
+    ).length,
 );
 
 const filteredGroups = computed<FilteredGroup[]>(() =>
@@ -139,11 +145,24 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
 
       let prs: PullRequest[] = entry;
       if (activeFilter.value === "sla-warn")
-        prs = prs.filter((p) => slaStatus(p.createdAt) === "warning");
+        prs = prs.filter(
+          (p) => !p.draft && slaStatus(p.createdAt) === "warning",
+        );
       else if (activeFilter.value === "sla-breach")
-        prs = prs.filter((p) => slaStatus(p.createdAt) === "breach");
+        prs = prs.filter(
+          (p) => !p.draft && slaStatus(p.createdAt) === "breach",
+        );
+      else if (activeFilter.value === "draft")
+        prs = prs.filter((p) => p.reviewStatus === "draft");
       else if (activeFilter.value !== "all")
-        prs = prs.filter((p) => p.reviewStatus === activeFilter.value);
+        prs = prs.filter(
+          (p) =>
+            p.reviewStatus === activeFilter.value &&
+            p.reviewStatus !== "draft",
+        );
+      else
+        // "all" hides drafts by default
+        prs = prs.filter((p) => p.reviewStatus !== "draft");
       if (staleOnly.value)
         prs = prs.filter(
           (p) => Date.now() - p.createdAt.getTime() > 7 * 86_400_000,
@@ -181,8 +200,12 @@ async function loadAll(isRefresh = false): Promise<void> {
       const fresh = r.value;
       anyOk = true;
 
-      // Annotate each PR with its SLA row CSS class
+      // Annotate each PR with its SLA row CSS class (drafts are exempt)
       for (const p of fresh) {
+        if (p.draft) {
+          p._slaRowCss = "";
+          continue;
+        }
         const s = slaStatus(p.createdAt);
         p._slaRowCss =
           s === "breach"
@@ -289,13 +312,12 @@ async function loadActivity(): Promise<void> {
   };
 }
 
-async function connect(newToken: string, newRepos: string): Promise<void> {
+async function connect(newRepos: string): Promise<void> {
   setupError.value = "";
-  if (!newToken || !newRepos.trim()) {
-    setupError.value = "Please enter a token and at least one repository.";
+  if (!newRepos.trim()) {
+    setupError.value = "Please enter at least one repository.";
     return;
   }
-  token.value = newToken;
   saveRepos(newRepos);
   loading.value = true;
   try {
@@ -316,12 +338,8 @@ async function refreshAll(): Promise<void> {
   }
 }
 
-async function handleSaveSettings(
-  newToken: string,
-  newRepos: string,
-): Promise<void> {
+async function handleSaveSettings(newRepos: string): Promise<void> {
   showSettings.value = false;
-  token.value = newToken || ENV_TOKEN;
   saveRepos(newRepos);
   prData.value = {};
   knownIds.value = {};
@@ -352,7 +370,7 @@ onUnmounted(() => {
 
 // Auto-connect on mount if token + repos are already available
 if (canAutoConnect) {
-  void connect(ENV_TOKEN, reposText.value);
+  void connect(reposText.value);
 }
 </script>
 
@@ -371,12 +389,14 @@ if (canAutoConnect) {
     <Topbar
       :stat-open="statOpen"
       :stat-approved="statApproved"
-      :stat-failing="statFailing"
+
       :stat-warn="statWarn"
       :stat-breach="statBreach"
       :sound-enabled="soundEnabled"
       :loading="loading"
       :last-updated="lastUpdated"
+      :on-test-new-pr="playNewPR"
+      :on-test-merged="playMerged"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
       @open-settings="showSettings = true"
@@ -476,7 +496,6 @@ if (canAutoConnect) {
     <!-- Settings -->
     <SettingsDialog
       :open="showSettings"
-      :current-token="token"
       :current-repos="reposText"
       @close="showSettings = false"
       @save="handleSaveSettings"

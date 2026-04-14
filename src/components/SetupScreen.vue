@@ -2,7 +2,6 @@
 import { ref } from "vue";
 import Card from "@/components/ui/Card.vue";
 import Button from "@/components/ui/Button.vue";
-import Input from "@/components/ui/Input.vue";
 import Textarea from "@/components/ui/Textarea.vue";
 import Label from "@/components/ui/Label.vue";
 import { RefreshCw, Zap } from "lucide-vue-next";
@@ -14,15 +13,14 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  connect: [token: string, repos: string];
+  connect: [repos: string];
 }>();
 
-// Token is never persisted to localStorage — only .env or session
-const token = ref(import.meta.env.VITE_GITHUB_TOKEN ?? "");
+const hasToken = Boolean(import.meta.env.VITE_GITHUB_TOKEN);
 const repos = ref(props.initialRepos);
 
 function handleConnect(): void {
-  emit("connect", token.value, repos.value);
+  emit("connect", repos.value);
 }
 </script>
 
@@ -50,27 +48,16 @@ function handleConnect(): void {
         </div>
       </div>
 
-      <div class="space-y-5">
-        <!-- Token -->
-        <div class="space-y-1.5">
-          <Label>GitHub Personal Access Token</Label>
-          <Input
-            type="password"
-            v-model="token"
-            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-            @keyup.enter="handleConnect"
-          />
-          <p class="font-mono text-[10.5px] text-muted-foreground">
-            Needs <code class="text-foreground/70">repo</code> scope — create at
-            github.com/settings/tokens.
-            <span class="text-primary/80"
-              >Or set
-              <code class="text-foreground/70">VITE_GITHUB_TOKEN</code> in .env
-              to skip this field.</span
-            >
-          </p>
-        </div>
+      <!-- Missing token error -->
+      <div
+        v-if="!hasToken"
+        class="mb-5 rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2 font-mono text-[11px] text-destructive"
+      >
+        <code>VITE_GITHUB_TOKEN</code> is not set. Add it to your
+        <code>.env</code> file and restart the dev server.
+      </div>
 
+      <div class="space-y-5">
         <!-- Repos -->
         <div class="space-y-1.5">
           <Label>Repositories</Label>
@@ -78,6 +65,7 @@ function handleConnect(): void {
             v-model="repos"
             placeholder="owner/repo&#10;owner/another-repo"
             class="min-h-[88px]"
+            :disabled="!hasToken"
           />
           <p class="font-mono text-[10.5px] text-muted-foreground">
             One per line — format:
@@ -89,7 +77,11 @@ function handleConnect(): void {
         </div>
 
         <!-- CTA -->
-        <Button class="w-full mt-2" :disabled="loading" @click="handleConnect">
+        <Button
+          class="w-full mt-2"
+          :disabled="loading || !hasToken"
+          @click="handleConnect"
+        >
           <RefreshCw v-if="loading" class="h-3 w-3 animate-spin" />
           <span>{{
             loading ? "Connecting…" : "Connect & Start Watching →"
