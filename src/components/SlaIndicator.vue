@@ -36,8 +36,8 @@ const overByLabel = computed(() => {
     >
       <XCircle v-if="status === 'breach'" class="h-2.5 w-2.5" />
       <AlertTriangle v-else class="h-2.5 w-2.5" />
-      <span v-if="status === 'breach'">Breach {{ overByLabel }}</span>
-      <span v-else>{{ hoursUntilBreach }}h left</span>
+      <span v-if="status === 'breach'" class="whitespace-nowrap">Breach {{ overByLabel }}</span>
+      <span v-else class="whitespace-nowrap">{{ hoursUntilBreach }}h left</span>
     </Badge>
   </div>
 </template>

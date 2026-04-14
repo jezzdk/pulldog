@@ -74,7 +74,8 @@ function openPR(url: string): void {
 
 <template>
   <div class="rounded-lg border border-border overflow-hidden">
-    <table class="w-full border-collapse text-xs">
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-[700px] border-collapse text-xs">
       <thead>
         <tr class="border-b border-border bg-muted/30">
           <th
@@ -277,5 +278,6 @@ function openPR(url: string): void {
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>
