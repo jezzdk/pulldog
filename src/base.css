@@ -92,7 +92,7 @@
   html, body {
     @apply bg-background text-foreground;
     font-family: 'Geist', sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     min-height: 100%;

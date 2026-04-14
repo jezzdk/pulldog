@@ -1,5 +1,6 @@
 // composables/useGithub.ts
 import type { ComputedRef } from 'vue'
+import { slaStatus } from '@/composables/useSla'
 import type { PullRequest, ReviewStatus, CheckStatus } from '@/types'
 
 interface GithubErrorBody {
@@ -109,6 +110,7 @@ export function useGithub(token: ComputedRef<string>) {
           commentCount:       (pr.comments ?? 0) + (pr.review_comments ?? 0),
           repo:               repoFull,
           _flashClass:        '',
+          _slaRowCss:         '',
         }
       }),
     )

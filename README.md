@@ -166,3 +166,26 @@ Open an [issue](../../issues) and include:
 ## License
 
 Distributed under the [MIT License](LICENSE). See `LICENSE` for full text.
+
+## Kiosk / TV mode
+
+Pulldog has a built-in **fullscreen toggle** (⛶ button in the top-right corner) that uses the browser Fullscreen API to hide all browser chrome — address bar, tabs, bookmarks — leaving only the dashboard.
+
+Press **Esc** or click the button again to exit.
+
+For a permanent TV kiosk setup, launch Chrome or Chromium directly into kiosk mode pointing at your deployed Pulldog URL:
+
+```bash
+# Linux / Raspberry Pi
+chromium-browser --kiosk --noerrdialogs --disable-infobars https://your-pulldog-url.com
+
+# macOS
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --kiosk --noerrdialogs https://your-pulldog-url.com
+
+# Windows
+"C:\Program Files\Google\Chrome\Application\chrome.exe" ^
+  --kiosk --noerrdialogs https://your-pulldog-url.com
+```
+
+Set `VITE_GITHUB_TOKEN` and pre-seed repos in `.env` before building so the dashboard connects automatically without any interaction needed on boot.

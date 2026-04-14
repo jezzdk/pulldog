@@ -31,6 +31,7 @@ export interface PullRequest {
   commentCount:        number
   repo:                string
   _flashClass:         string
+  _slaRowCss:          string
 }
 
 export interface RepoData {
@@ -65,4 +66,10 @@ export interface Toast {
   title: string
   sub:   string
   out:   boolean
+}
+
+export interface FilteredGroup {
+  repo:  string
+  prs:   PullRequest[]
+  error: string | null
 }
