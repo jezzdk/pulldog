@@ -2,7 +2,8 @@
 import { ref, type Ref } from "vue";
 
 const STORAGE_KEY = "pulldog-token";
-const ENV_TOKEN = (import.meta.env.VITE_GITHUB_TOKEN as string | undefined) ?? "";
+const ENV_TOKEN =
+  (import.meta.env.VITE_GITHUB_TOKEN as string | undefined) ?? "";
 
 interface UsePersistedTokenReturn {
   token: Ref<string>;

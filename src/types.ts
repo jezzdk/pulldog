@@ -1,11 +1,6 @@
 // src/types.ts — shared domain types
 
-export type ReviewStatus =
-  | "open"
-  | "approved"
-  | "draft"
-  | "changes"
-  | "merged";
+export type ReviewStatus = "open" | "approved" | "draft" | "changes" | "merged";
 export type SlaStatus = "ok" | "warning" | "breach";
 export type Theme = "light" | "dark" | "system";
 

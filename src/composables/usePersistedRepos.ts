@@ -9,6 +9,7 @@ interface UsePersistedReposReturn {
   reposText: Ref<string>;
   repoList: Ref<string[]>;
   save: (text: string) => void;
+  saveList: (repos: string[]) => void;
   clear: () => void;
 }
 
@@ -33,6 +34,10 @@ export function usePersistedRepos(): UsePersistedReposReturn {
     localStorage.setItem(STORAGE_KEY, text);
   }
 
+  function saveList(repos: string[]): void {
+    save(repos.join("\n"));
+  }
+
   function clear(): void {
     reposText.value = "";
     repoList.value = [];
@@ -48,5 +53,5 @@ export function usePersistedRepos(): UsePersistedReposReturn {
     localStorage.setItem(STORAGE_KEY, val);
   });
 
-  return { reposText, repoList, save, clear };
+  return { reposText, repoList, save, saveList, clear };
 }

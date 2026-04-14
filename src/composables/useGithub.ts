@@ -7,6 +7,11 @@ interface GithubErrorBody {
   message?: string;
 }
 
+interface GithubRepo {
+  full_name: string;
+  archived: boolean;
+}
+
 interface GithubReview {
   state: string;
   user: { login: string };
@@ -36,10 +41,11 @@ export interface ActivityMetrics {
 }
 
 export function useGithub(token: ComputedRef<string>) {
-  async function gh<T>(path: string): Promise<T> {
+  async function gh<T>(path: string, overrideToken?: string): Promise<T> {
+    const tok = overrideToken ?? token.value;
     const r = await fetch(`https://api.github.com${path}`, {
       headers: {
-        Authorization: `token ${token.value}`,
+        Authorization: `token ${tok}`,
         Accept: "application/vnd.github+json",
       },
     });
@@ -174,5 +180,24 @@ export function useGithub(token: ComputedRef<string>) {
     };
   }
 
-  return { fetchRepo, checkIfMerged, fetchRecentActivity };
+  async function fetchAvailableRepos(
+    overrideToken?: string,
+  ): Promise<string[]> {
+    const result: string[] = [];
+    let page = 1;
+    while (page <= 5) {
+      const batch = await gh<GithubRepo[]>(
+        `/user/repos?per_page=100&sort=pushed&page=${page}&affiliation=owner,collaborator,organization_member`,
+        overrideToken,
+      );
+      for (const r of batch) {
+        if (!r.archived) result.push(r.full_name);
+      }
+      if (batch.length < 100) break;
+      page++;
+    }
+    return result;
+  }
+
+  return { fetchRepo, checkIfMerged, fetchRecentActivity, fetchAvailableRepos };
 }

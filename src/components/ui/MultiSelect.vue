@@ -133,9 +133,9 @@ onUnmounted(() => document.removeEventListener("mousedown", handleOutside));
               :alt="opt"
               class="h-4 w-4 rounded-full shrink-0 object-cover"
             />
-            <span class="font-mono text-[11px] text-foreground truncate">{{
-              opt
-            }}</span>
+            <span class="font-mono text-[11px] text-foreground truncate">
+              {{ opt }}
+            </span>
           </button>
         </div>
         <div v-if="isActive" class="border-t border-border px-3 py-1.5">

@@ -161,11 +161,12 @@ function openPR(url: string): void {
               target="_blank"
               @click.stop
               class="block truncate font-medium text-foreground hover:text-primary transition-colors leading-snug"
-              >{{ pr.title }}</a
             >
-            <span class="font-mono text-[10px] text-muted-foreground"
-              >#{{ pr.number }}</span
-            >
+              {{ pr.title }}
+            </a>
+            <span class="font-mono text-[10px] text-muted-foreground">
+              #{{ pr.number }}
+            </span>
           </td>
 
           <!-- Repo -->
@@ -207,9 +208,9 @@ function openPR(url: string): void {
                 <Avatar :src="u.avatar_url + '&s=48'" :alt="u.login" />
               </Tooltip>
             </div>
-            <span v-else class="font-mono text-[11px] text-muted-foreground/40"
-              >—</span
-            >
+            <span v-else class="font-mono text-[11px] text-muted-foreground/40">
+              —
+            </span>
           </td>
 
           <!-- Reviewers -->
@@ -223,9 +224,9 @@ function openPR(url: string): void {
                 <Avatar :src="u.avatar_url + '&s=48'" :alt="u.login" />
               </Tooltip>
             </div>
-            <span v-else class="font-mono text-[11px] text-muted-foreground/40"
-              >—</span
-            >
+            <span v-else class="font-mono text-[11px] text-muted-foreground/40">
+              —
+            </span>
           </td>
 
           <!-- Labels -->
@@ -240,12 +241,13 @@ function openPR(url: string): void {
                   color: `#${l.color}`,
                   background: `rgba(${hex2rgb(l.color)}, 0.07)`,
                 }"
-                >{{ l.name }}</span
               >
+                {{ l.name }}
+              </span>
             </div>
-            <span v-else class="font-mono text-[11px] text-muted-foreground/40"
-              >—</span
-            >
+            <span v-else class="font-mono text-[11px] text-muted-foreground/40">
+              —
+            </span>
           </td>
 
           <!-- Comments -->
@@ -263,8 +265,9 @@ function openPR(url: string): void {
                 v-if="pr.commentCount >= commentFireThreshold"
                 class="text-sm leading-none"
                 title="Hot PR!"
-                >🔥</span
               >
+                🔥
+              </span>
             </div>
           </td>
 

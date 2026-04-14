@@ -32,7 +32,7 @@ const COMMENT_FIRE_THRESHOLD = Number(
 );
 
 // ── persisted repos + token ───────────────────────────────────────
-const { reposText, repoList, save: saveRepos } = usePersistedRepos();
+const { reposText, repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 
 // ── session state ─────────────────────────────────────────────────
@@ -89,7 +89,7 @@ function addToast(
 // ── audio / github ────────────────────────────────────────────────
 const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
 const tokenComputed = computed(() => token.value);
-const { fetchRepo, checkIfMerged, fetchRecentActivity } =
+const { fetchRepo, checkIfMerged, fetchRecentActivity, fetchAvailableRepos } =
   useGithub(tokenComputed);
 
 // ── computed stats ────────────────────────────────────────────────
@@ -116,9 +116,7 @@ const authorAvatars = computed<Record<string, string>>(() => {
   return map;
 });
 
-const totalOpen = computed(
-  () => allPRs.value.filter((p) => !p.draft).length,
-);
+const totalOpen = computed(() => allPRs.value.filter((p) => !p.draft).length);
 const statOpen = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
 );
@@ -128,15 +126,13 @@ const statApproved = computed(
 
 const statWarn = computed(
   () =>
-    allPRs.value.filter(
-      (p) => !p.draft && slaStatus(p.createdAt) === "warning",
-    ).length,
+    allPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "warning")
+      .length,
 );
 const statBreach = computed(
   () =>
-    allPRs.value.filter(
-      (p) => !p.draft && slaStatus(p.createdAt) === "breach",
-    ).length,
+    allPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "breach")
+      .length,
 );
 
 const filteredGroups = computed<FilteredGroup[]>(() =>
@@ -164,8 +160,7 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
       else if (activeFilter.value !== "all")
         prs = prs.filter(
           (p) =>
-            p.reviewStatus === activeFilter.value &&
-            p.reviewStatus !== "draft",
+            p.reviewStatus === activeFilter.value && p.reviewStatus !== "draft",
         );
       else
         // "all" hides drafts by default
@@ -325,7 +320,7 @@ async function loadActivity(): Promise<void> {
   };
 }
 
-async function connect(newRepos: string, newToken?: string): Promise<void> {
+async function connect(newRepos: string[], newToken?: string): Promise<void> {
   setupError.value = "";
   if (newToken !== undefined) {
     token.value = newToken;
@@ -335,11 +330,11 @@ async function connect(newRepos: string, newToken?: string): Promise<void> {
     setupError.value = "Please enter a GitHub token.";
     return;
   }
-  if (!newRepos.trim()) {
-    setupError.value = "Please enter at least one repository.";
+  if (!newRepos.length) {
+    setupError.value = "Please select at least one repository.";
     return;
   }
-  saveRepos(newRepos);
+  saveList(newRepos);
   loading.value = true;
   try {
     await loadAll(false);
@@ -359,13 +354,16 @@ async function refreshAll(): Promise<void> {
   }
 }
 
-async function handleSaveSettings(newRepos: string, newToken?: string): Promise<void> {
+async function handleSaveSettings(
+  newRepos: string[],
+  newToken?: string,
+): Promise<void> {
   showSettings.value = false;
   if (newToken !== undefined) {
     token.value = newToken;
     saveToken(newToken);
   }
-  saveRepos(newRepos);
+  saveList(newRepos);
   prData.value = {};
   knownIds.value = {};
   selectedRepos.value = [];
@@ -395,7 +393,7 @@ onUnmounted(() => {
 
 // Auto-connect on mount if token + repos are already available
 if (canAutoConnect) {
-  void connect(reposText.value);
+  void connect(repoList.value);
 }
 </script>
 
@@ -403,8 +401,10 @@ if (canAutoConnect) {
   <!-- ── Setup ───────────────────────────────────────────────── -->
   <SetupScreen
     v-if="!connected"
-    :initial-repos="reposText"
     :has-env-token="hasEnvToken"
+    :initial-token="token"
+    :initial-selected="repoList"
+    :fetch-repos="fetchAvailableRepos"
     :loading="loading"
     :error="setupError"
     @connect="connect"
@@ -415,7 +415,6 @@ if (canAutoConnect) {
     <Topbar
       :stat-open="statOpen"
       :stat-approved="statApproved"
-
       :stat-warn="statWarn"
       :stat-breach="statBreach"
       :sound-enabled="soundEnabled"
@@ -470,16 +469,18 @@ if (canAutoConnect) {
               :href="'https://github.com/' + group.repo"
               target="_blank"
               class="font-mono text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
-              >{{ group.repo }}</a
             >
-            <Badge variant="secondary" class="text-[10px] px-1.5 py-0">{{
-              group.prs.length
-            }}</Badge>
+              {{ group.repo }}
+            </a>
+            <Badge variant="secondary" class="text-[10px] px-1.5 py-0">
+              {{ group.prs.length }}
+            </Badge>
             <span
               v-if="group.error"
               class="font-mono text-[11px] text-destructive"
-              >⚠ {{ group.error }}</span
             >
+              ⚠ {{ group.error }}
+            </span>
           </div>
         </div>
 
@@ -547,9 +548,10 @@ if (canAutoConnect) {
     <!-- Settings -->
     <SettingsDialog
       :open="showSettings"
-      :current-repos="reposText"
       :has-env-token="hasEnvToken"
       :current-token="token"
+      :current-repos="repoList"
+      :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"
     />

@@ -51,9 +51,9 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
         <Badge variant="default">{{ statOpen }} open</Badge>
         <Badge variant="success">{{ statApproved }} approved</Badge>
 
-        <Badge variant="warning" v-if="statWarn > 0"
-          >⚠ {{ statWarn }} warn</Badge
-        >
+        <Badge variant="warning" v-if="statWarn > 0">
+          ⚠ {{ statWarn }} warn
+        </Badge>
         <Badge
           variant="destructive"
           v-if="statBreach > 0"
@@ -151,9 +151,9 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
 
     <!-- Test buttons (always visible for easy access) -->
     <div class="ml-auto flex items-center gap-1.5">
-      <span class="font-mono text-[10px] text-muted-foreground/40 mr-0.5"
-        >test:</span
-      >
+      <span class="font-mono text-[10px] text-muted-foreground/40 mr-0.5">
+        test:
+      </span>
       <Button
         variant="outline"
         size="sm"

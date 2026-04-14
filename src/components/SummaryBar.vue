@@ -139,9 +139,9 @@ const mergeRate = computed((): number =>
       <div class="w-24">
         <Progress :value="mergeRate" />
       </div>
-      <span class="font-mono text-xs font-semibold text-purple-400 min-w-[3ch]"
-        >{{ mergeRate }}%</span
-      >
+      <span class="font-mono text-xs font-semibold text-purple-400 min-w-[3ch]">
+        {{ mergeRate }}%
+      </span>
     </div>
   </div>
 </template>
