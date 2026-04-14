@@ -1,6 +1,5 @@
 // composables/useGithub.ts
 import type { ComputedRef } from "vue";
-import { slaStatus } from "@/composables/useSla";
 import type { PullRequest, ReviewStatus } from "@/types";
 
 interface GithubErrorBody {
@@ -58,12 +57,14 @@ export function useGithub(token: ComputedRef<string>) {
         Accept: "application/vnd.github+json",
       },
     });
+
     if (!r.ok) {
       const b = (await r
         .json()
         .catch((): GithubErrorBody => ({}))) as GithubErrorBody;
       throw new Error(`GitHub ${r.status}: ${b.message ?? "error"}`);
     }
+
     return r.json() as Promise<T>;
   }
 
@@ -125,16 +126,28 @@ export function useGithub(token: ComputedRef<string>) {
         }
 
         let reviewedAt: Date | undefined;
+
         if (reviewsRes.status === "fulfilled" && !pr.draft) {
-          const latest: Record<string, { state: string; submitted_at: string }> = {};
+          const latest: Record<
+            string,
+            { state: string; submitted_at: string }
+          > = {};
+
           for (const rv of reviewsRes.value) {
-            if (rv.state !== "COMMENTED") latest[rv.user.login] = rv;
+            if (rv.state !== "COMMENTED") {
+              latest[rv.user.login] = rv;
+            }
           }
+
           const entries = Object.values(latest);
           const states = entries.map((e) => e.state);
-          if (states.includes("CHANGES_REQUESTED")) reviewStatus = "changes";
-          else if (states.length && states.every((s) => s === "APPROVED"))
+
+          if (states.includes("CHANGES_REQUESTED")) {
+            reviewStatus = "changes";
+          } else if (states.length && states.every((s) => s === "APPROVED")) {
             reviewStatus = "approved";
+          }
+
           if (entries.length) {
             const latest_ts = entries.reduce((a, b) =>
               a.submitted_at > b.submitted_at ? a : b,
@@ -170,6 +183,7 @@ export function useGithub(token: ComputedRef<string>) {
     prNumber: number,
   ): Promise<boolean> {
     const [owner, repo] = repoFull.split("/");
+
     try {
       const pr = await gh<GithubRawPR>(
         `/repos/${owner}/${repo}/pulls/${prNumber}`,
@@ -197,7 +211,11 @@ export function useGithub(token: ComputedRef<string>) {
     ]);
 
     const byId: Record<number, GithubRawPR> = {};
-    for (const pr of [...closedRaw, ...openRaw]) byId[pr.id] = pr;
+
+    for (const pr of [...closedRaw, ...openRaw]) {
+      byId[pr.id] = pr;
+    }
+
     const all = Object.values(byId);
 
     const created7d = all.filter(
@@ -210,6 +228,7 @@ export function useGithub(token: ComputedRef<string>) {
     );
 
     let avgLeadTimeHours: number | null = null;
+
     if (merged7d.length > 0) {
       const totalMs = merged7d.reduce((sum, pr) => {
         return (
@@ -269,12 +288,16 @@ export function useGithub(token: ComputedRef<string>) {
     for (let i = 0; i < mergedRecently.length; i++) {
       const pr = mergedRecently[i]!;
       const result = reviewResults[i]!;
-      if (result.status !== "fulfilled") continue;
+
+      if (result.status !== "fulfilled") {
+        continue;
+      }
 
       const reviews = result.value;
 
       // Time to first review (excluding plain comments)
       const substantive = reviews.filter((r) => r.state !== "COMMENTED");
+
       if (substantive.length > 0) {
         const first = substantive.reduce((a, b) =>
           a.submitted_at < b.submitted_at ? a : b,
@@ -282,6 +305,7 @@ export function useGithub(token: ComputedRef<string>) {
         const ms =
           new Date(first.submitted_at).getTime() -
           new Date(pr.created_at).getTime();
+
         if (ms > 0) {
           totalReviewMs += ms;
           reviewedCount++;
@@ -291,6 +315,7 @@ export function useGithub(token: ComputedRef<string>) {
       // Time from last approval to merge
       if (pr.merged_at) {
         const approvals = reviews.filter((r) => r.state === "APPROVED");
+
         if (approvals.length > 0) {
           const lastApproval = approvals.reduce((a, b) =>
             a.submitted_at > b.submitted_at ? a : b,
@@ -298,6 +323,7 @@ export function useGithub(token: ComputedRef<string>) {
           const ms =
             new Date(pr.merged_at).getTime() -
             new Date(lastApproval.submitted_at).getTime();
+
           if (ms >= 0) {
             totalMergeMs += ms;
             mergedWithApprovalCount++;
@@ -308,9 +334,7 @@ export function useGithub(token: ComputedRef<string>) {
 
     return {
       avgTimeToReviewHours:
-        reviewedCount > 0
-          ? totalReviewMs / reviewedCount / 3_600_000
-          : null,
+        reviewedCount > 0 ? totalReviewMs / reviewedCount / 3_600_000 : null,
       avgTimeToMergeHours:
         mergedWithApprovalCount > 0
           ? totalMergeMs / mergedWithApprovalCount / 3_600_000
@@ -325,19 +349,34 @@ export function useGithub(token: ComputedRef<string>) {
   ): Promise<string[]> {
     const result: string[] = [];
     let page = 1;
+
     while (page <= 5) {
       const batch = await gh<GithubRepo[]>(
         `/user/repos?per_page=100&sort=pushed&page=${page}&affiliation=owner,collaborator,organization_member`,
         overrideToken,
       );
+
       for (const r of batch) {
-        if (!r.archived) result.push(r.full_name);
+        if (!r.archived) {
+          result.push(r.full_name);
+        }
       }
-      if (batch.length < 100) break;
+
+      if (batch.length < 100) {
+        break;
+      }
+
       page++;
     }
+
     return result;
   }
 
-  return { fetchRepo, checkIfMerged, fetchRecentActivity, fetchReviewStats, fetchAvailableRepos };
+  return {
+    fetchRepo,
+    checkIfMerged,
+    fetchRecentActivity,
+    fetchReviewStats,
+    fetchAvailableRepos,
+  };
 }

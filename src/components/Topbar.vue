@@ -107,7 +107,11 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       <!-- Fullscreen toggle — only shown if the Fullscreen API is available -->
       <Tooltip
         v-if="isSupported"
-        :text="isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen / kiosk mode'"
+        :text="
+          isFullscreen
+            ? 'Exit fullscreen (Esc)'
+            : 'Enter fullscreen / kiosk mode'
+        "
         side="bottom"
       >
         <Button variant="ghost" size="icon" @click="toggleFullscreen">

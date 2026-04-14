@@ -34,7 +34,7 @@ type StatPeriod = "12h" | "24h" | "7d" | "14d" | "30d";
 const STAT_PERIOD_MS: Record<StatPeriod, number> = {
   "12h": 12 * 3_600_000,
   "24h": 24 * 3_600_000,
-  "7d":   7 * 86_400_000,
+  "7d": 7 * 86_400_000,
   "14d": 14 * 86_400_000,
   "30d": 30 * 86_400_000,
 };
@@ -97,7 +97,11 @@ function addToast(
   toasts.value.push({ id, type, icon, title, sub, out: false });
   setTimeout(() => {
     const t = toasts.value.find((x) => x.id === id);
-    if (t) t.out = true;
+
+    if (t) {
+      t.out = true;
+    }
+
     setTimeout(() => {
       toasts.value = toasts.value.filter((x) => x.id !== id);
     }, 300);
@@ -107,8 +111,12 @@ function addToast(
 // ── audio / github ────────────────────────────────────────────────
 const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
 const tokenComputed = computed(() => token.value);
-const { fetchRepo, fetchRecentActivity, fetchReviewStats, fetchAvailableRepos } =
-  useGithub(tokenComputed);
+const {
+  fetchRepo,
+  fetchRecentActivity,
+  fetchReviewStats,
+  fetchAvailableRepos,
+} = useGithub(tokenComputed);
 
 // ── computed stats ────────────────────────────────────────────────
 const allPRs = computed<PullRequest[]>(() =>
@@ -128,9 +136,11 @@ const authorOptions = computed<string[]>(() => {
 
 const authorAvatars = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
+
   for (const p of allPRs.value) {
     map[p.author.login] = p.author.avatar_url;
   }
+
   return map;
 });
 
@@ -144,7 +154,11 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
     )
     .flatMap((repo) => {
       const entry = prData.value[repo];
-      if (!Array.isArray(entry)) return [];
+
+      if (!Array.isArray(entry)) {
+        return [];
+      }
+
       const prs = entry as PullRequest[];
       return selectedAuthors.value.length > 0
         ? prs.filter((p) => selectedAuthors.value.includes(p.author.login))
@@ -174,7 +188,8 @@ const statBreach = computed(
 
 const filteredActivity = computed(() => {
   const loaded = Object.keys(activityByRepo.value);
-  if (loaded.length === 0)
+
+  if (loaded.length === 0) {
     return {
       created7d: null as number | null,
       merged7d: null as number | null,
@@ -182,32 +197,45 @@ const filteredActivity = computed(() => {
       avgTimeToReviewHours: null as number | null,
       avgTimeToMergeHours: null as number | null,
     };
+  }
 
   const activeRepos =
     selectedRepos.value.length > 0
       ? selectedRepos.value.filter((r) => activityByRepo.value[r])
       : loaded;
 
-  let totalCreated = 0, totalMerged = 0;
-  let totalLeadMs = 0, mergedWithTime = 0;
-  let totalReviewMs = 0, reviewedCount = 0;
-  let totalMergeMs = 0, mergedWithApproval = 0;
+  let totalCreated = 0,
+    totalMerged = 0;
+  let totalLeadMs = 0,
+    mergedWithTime = 0;
+  let totalReviewMs = 0,
+    reviewedCount = 0;
+  let totalMergeMs = 0,
+    mergedWithApproval = 0;
 
   for (const repo of activeRepos) {
     const a = activityByRepo.value[repo];
-    if (!a) continue;
+
+    if (!a) {
+      continue;
+    }
+
     totalCreated += a.created7d;
     totalMerged += a.merged7d;
+
     if (a.avgLeadTimeHours !== null) {
       totalLeadMs += a.avgLeadTimeHours * 3_600_000 * a.merged7d;
       mergedWithTime += a.merged7d;
     }
+
     if (a.avgTimeToReviewHours !== null) {
       totalReviewMs += a.avgTimeToReviewHours * 3_600_000 * a.reviewedCount;
       reviewedCount += a.reviewedCount;
     }
+
     if (a.avgTimeToMergeHours !== null) {
-      totalMergeMs += a.avgTimeToMergeHours * 3_600_000 * a.mergedWithApprovalCount;
+      totalMergeMs +=
+        a.avgTimeToMergeHours * 3_600_000 * a.mergedWithApprovalCount;
       mergedWithApproval += a.mergedWithApprovalCount;
     }
   }
@@ -220,7 +248,9 @@ const filteredActivity = computed(() => {
     avgTimeToReviewHours:
       reviewedCount > 0 ? totalReviewMs / reviewedCount / 3_600_000 : null,
     avgTimeToMergeHours:
-      mergedWithApproval > 0 ? totalMergeMs / mergedWithApproval / 3_600_000 : null,
+      mergedWithApproval > 0
+        ? totalMergeMs / mergedWithApproval / 3_600_000
+        : null,
   };
 });
 
@@ -232,38 +262,47 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
     )
     .map((repo) => {
       const entry = prData.value[repo];
-      if (!entry) return { repo, prs: [], error: null };
-      if (!Array.isArray(entry)) return { repo, prs: [], error: entry.error };
+
+      if (!entry) {
+        return { repo, prs: [], error: null };
+      }
+
+      if (!Array.isArray(entry)) {
+        return { repo, prs: [], error: entry.error };
+      }
 
       let prs: PullRequest[] = [...entry];
-      if (activeFilter.value === "sla-warn")
+
+      if (activeFilter.value === "sla-warn") {
         prs = prs.filter(
           (p) =>
-            p.reviewStatus === "open" &&
-            slaStatus(p.createdAt) === "warning",
+            p.reviewStatus === "open" && slaStatus(p.createdAt) === "warning",
         );
-      else if (activeFilter.value === "sla-breach")
+      } else if (activeFilter.value === "sla-breach") {
         prs = prs.filter(
           (p) =>
-            p.reviewStatus === "open" &&
-            slaStatus(p.createdAt) === "breach",
+            p.reviewStatus === "open" && slaStatus(p.createdAt) === "breach",
         );
-      else if (activeFilter.value === "draft")
+      } else if (activeFilter.value === "draft") {
         prs = prs.filter((p) => p.reviewStatus === "draft");
-      else if (activeFilter.value === "merged")
+      } else if (activeFilter.value === "merged") {
         prs = prs.filter((p) => p.reviewStatus === "merged");
-      else if (activeFilter.value !== "all")
+      } else if (activeFilter.value !== "all") {
         prs = prs.filter(
           (p) =>
             p.reviewStatus === activeFilter.value && p.reviewStatus !== "draft",
         );
-      else
+      } else {
         // "all" hides drafts and merged by default
         prs = prs.filter(
           (p) => p.reviewStatus !== "draft" && p.reviewStatus !== "merged",
         );
-      if (selectedAuthors.value.length > 0)
+      }
+
+      if (selectedAuthors.value.length > 0) {
         prs = prs.filter((p) => selectedAuthors.value.includes(p.author.login));
+      }
+
       if (searchQ.value) {
         const q = searchQ.value.toLowerCase();
         prs = prs.filter(
@@ -273,6 +312,7 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
             String(p.number).includes(q),
         );
       }
+
       return { repo, prs, error: null };
     }),
 );
@@ -312,6 +352,7 @@ async function loadAll(isRefresh = false): Promise<void> {
           p._slaRowCss = "";
           continue;
         }
+
         p._slaRowCss = "";
       }
 
@@ -320,19 +361,32 @@ async function loadAll(isRefresh = false): Promise<void> {
 
         for (const p of fresh) {
           const prevStatus = prev[p.id];
+
           if (prevStatus === undefined) {
             // Brand-new PR — only notify for genuinely new open PRs
             if (p.reviewStatus !== "merged") {
               playNewPR();
-              addToast("new", "🔔", "New pull request", `${repo} #${p.number}: ${p.title}`);
+              addToast(
+                "new",
+                "🔔",
+                "New pull request",
+                `${repo} #${p.number}: ${p.title}`,
+              );
               await nextTick();
               p._flashClass = "flash-new";
-              setTimeout(() => { p._flashClass = ""; }, 900);
+              setTimeout(() => {
+                p._flashClass = "";
+              }, 900);
             }
           } else if (prevStatus !== "merged" && p.reviewStatus === "merged") {
             // PR transitioned to merged this poll — play gong
             playMerged();
-            addToast("merged", "🎉", "PR merged!", `${repo} #${p.number}: ${p.title}`);
+            addToast(
+              "merged",
+              "🎉",
+              "PR merged!",
+              `${repo} #${p.number}: ${p.title}`,
+            );
           }
         }
       }
@@ -373,11 +427,13 @@ async function loadActivity(): Promise<void> {
       return {
         repo,
         activity: activityRes.status === "fulfilled" ? activityRes.value : null,
-        reviewStats: reviewStatsRes.status === "fulfilled" ? reviewStatsRes.value : null,
+        reviewStats:
+          reviewStatsRes.status === "fulfilled" ? reviewStatsRes.value : null,
       };
     }),
   );
   const updated = { ...activityByRepo.value };
+
   for (const r of results) {
     if (r.status === "fulfilled" && r.value.activity !== null) {
       updated[r.value.repo] = {
@@ -385,34 +441,43 @@ async function loadActivity(): Promise<void> {
         avgTimeToReviewHours: r.value.reviewStats?.avgTimeToReviewHours ?? null,
         avgTimeToMergeHours: r.value.reviewStats?.avgTimeToMergeHours ?? null,
         reviewedCount: r.value.reviewStats?.reviewedCount ?? 0,
-        mergedWithApprovalCount: r.value.reviewStats?.mergedWithApprovalCount ?? 0,
+        mergedWithApprovalCount:
+          r.value.reviewStats?.mergedWithApprovalCount ?? 0,
       };
     }
   }
+
   activityByRepo.value = updated;
   activityLoading.value = false;
 }
 
 watch(statPeriod, () => {
-  if (connected.value) void loadActivity();
+  if (connected.value) {
+    void loadActivity();
+  }
 });
 
 async function connect(newRepos: string[], newToken?: string): Promise<void> {
   setupError.value = "";
+
   if (newToken !== undefined) {
     token.value = newToken;
     saveToken(newToken);
   }
+
   if (!token.value.trim()) {
     setupError.value = "Please enter a GitHub token.";
     return;
   }
+
   if (!newRepos.length) {
     setupError.value = "Please select at least one repository.";
     return;
   }
+
   saveList(newRepos);
   loading.value = true;
+
   try {
     await loadAll(false);
     void loadActivity();
@@ -421,6 +486,7 @@ async function connect(newRepos: string[], newToken?: string): Promise<void> {
   } catch (e) {
     setupError.value = e instanceof Error ? e.message : "Unknown error";
   }
+
   loading.value = false;
 }
 
@@ -436,10 +502,12 @@ async function handleSaveSettings(
   newToken?: string,
 ): Promise<void> {
   showSettings.value = false;
+
   if (newToken !== undefined) {
     token.value = newToken;
     saveToken(newToken);
   }
+
   saveList(newRepos);
   prData.value = {};
   knownStatuses.value = {};
@@ -457,6 +525,7 @@ function handleLogout(): void {
     clearInterval(pollTimer);
     pollTimer = null;
   }
+
   localStorage.removeItem("pulldog-repos");
   localStorage.removeItem("pulldog-token");
   token.value = "";
@@ -475,14 +544,19 @@ function handleLogout(): void {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 function startPolling(): void {
-  if (pollTimer !== null) clearInterval(pollTimer);
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+  }
+
   pollTimer = setInterval(() => {
     void loadAll(true);
     void loadActivity();
   }, 60_000);
 }
 onUnmounted(() => {
-  if (pollTimer !== null) clearInterval(pollTimer);
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+  }
 });
 
 // Auto-connect on mount if token + repos are already available

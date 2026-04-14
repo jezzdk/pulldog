@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import Input from "@/components/ui/Input.vue";
 import MultiSelect from "@/components/ui/MultiSelect.vue";
-import Tooltip from "@/components/ui/Tooltip.vue";
 
 interface FilterOption {
   v: string;

@@ -14,7 +14,10 @@ const visible = ref(false);
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 function show() {
-  if (!props.text) return;
+  if (!props.text) {
+    return;
+  }
+
   timer = setTimeout(() => {
     visible.value = true;
   }, props.delay);
@@ -24,6 +27,7 @@ function hide() {
     clearTimeout(timer);
     timer = null;
   }
+
   visible.value = false;
 }
 </script>

@@ -34,7 +34,10 @@ export function useFullscreen(): UseFullscreenReturn {
   });
 
   async function enter(): Promise<void> {
-    if (!isSupported.value) return;
+    if (!isSupported.value) {
+      return;
+    }
+
     try {
       await document.documentElement.requestFullscreen({
         navigationUI: "hide",
@@ -45,7 +48,10 @@ export function useFullscreen(): UseFullscreenReturn {
   }
 
   async function exit(): Promise<void> {
-    if (!document.fullscreenElement) return;
+    if (!document.fullscreenElement) {
+      return;
+    }
+
     try {
       await document.exitFullscreen();
     } catch (_) {
@@ -54,7 +60,11 @@ export function useFullscreen(): UseFullscreenReturn {
   }
 
   async function toggle(): Promise<void> {
-    isFullscreen.value ? await exit() : await enter();
+    if (isFullscreen.value) {
+      await exit();
+    } else {
+      await enter();
+    }
   }
 
   return { isFullscreen, isSupported, toggle, enter, exit };

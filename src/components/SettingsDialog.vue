@@ -44,6 +44,7 @@ const allFilteredSelected = computed(
 async function loadRepos(): Promise<void> {
   loadState.value = "loading";
   loadError.value = "";
+
   try {
     const tok = props.hasEnvToken ? undefined : tokenInput.value.trim();
     const repos = await props.fetchRepos(tok);

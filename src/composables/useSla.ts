@@ -12,8 +12,15 @@ export const SLA = {
 /** Returns 'breach' | 'warning' | 'ok' for a given PR creation date. */
 export function slaStatus(createdAt: Date): SlaStatus {
   const hours = (Date.now() - createdAt.getTime()) / 3_600_000;
-  if (hours >= BREACH_HOURS) return "breach";
-  if (hours >= WARNING_HOURS) return "warning";
+
+  if (hours >= BREACH_HOURS) {
+    return "breach";
+  }
+
+  if (hours >= WARNING_HOURS) {
+    return "warning";
+  }
+
   return "ok";
 }
 

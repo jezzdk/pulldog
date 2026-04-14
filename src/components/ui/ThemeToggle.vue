@@ -25,7 +25,12 @@ const options: ThemeOption[] = [
   <div
     class="flex items-center rounded-md border border-border bg-muted/40 p-0.5 gap-0.5"
   >
-    <Tooltip v-for="opt in options" :key="opt.value" :text="opt.label" side="bottom">
+    <Tooltip
+      v-for="opt in options"
+      :key="opt.value"
+      :text="opt.label"
+      side="bottom"
+    >
       <button
         @click="setTheme(opt.value)"
         :class="

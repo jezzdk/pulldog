@@ -15,7 +15,10 @@ export function usePersistedToken(): UsePersistedTokenReturn {
   const hasEnvToken = ENV_TOKEN.length > 0;
 
   function load(): string {
-    if (hasEnvToken) return ENV_TOKEN;
+    if (hasEnvToken) {
+      return ENV_TOKEN;
+    }
+
     return localStorage.getItem(STORAGE_KEY) ?? "";
   }
 

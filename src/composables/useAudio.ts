@@ -22,6 +22,7 @@ export function useAudio(): UseAudioReturn {
           .webkitAudioContext!
       )();
     }
+
     return audioCtx;
   }
 
@@ -29,7 +30,10 @@ export function useAudio(): UseAudioReturn {
   // Sharp metallic strike transient + clean high-pitched ring that
   // decays over ~1.5 s.
   function playNewPR(): void {
-    if (!soundEnabled.value) return;
+    if (!soundEnabled.value) {
+      return;
+    }
+
     try {
       const c = ctx(),
         t = c.currentTime;
@@ -38,9 +42,11 @@ export function useAudio(): UseAudioReturn {
       const bufLen = Math.floor(c.sampleRate * 0.007);
       const buf = c.createBuffer(1, bufLen, c.sampleRate);
       const d = buf.getChannelData(0);
+
       for (let i = 0; i < bufLen; i++) {
         d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 3);
       }
+
       const click = c.createBufferSource();
       const clickGain = c.createGain();
       const clickFilter = c.createBiquadFilter();
@@ -60,6 +66,7 @@ export function useAudio(): UseAudioReturn {
         [8400, 0.05, 0.5], // 3rd
         [900, 0.04, 1.2], //  body resonance (the "ting" warmth)
       ];
+
       for (const [freq, vol, decay] of partials) {
         const osc = c.createOscillator();
         const gain = c.createGain();
@@ -83,7 +90,10 @@ export function useAudio(): UseAudioReturn {
   // for ~80 ms after the strike), rich inharmonic partials, and a
   // long 4-second decay.
   function playMerged(): void {
-    if (!soundEnabled.value) return;
+    if (!soundEnabled.value) {
+      return;
+    }
+
     try {
       const c = ctx(),
         t = c.currentTime;
@@ -92,9 +102,11 @@ export function useAudio(): UseAudioReturn {
       const bufLen = Math.floor(c.sampleRate * 0.025);
       const buf = c.createBuffer(1, bufLen, c.sampleRate);
       const d = buf.getChannelData(0);
+
       for (let i = 0; i < bufLen; i++) {
         d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 5);
       }
+
       const strike = c.createBufferSource();
       const strikeFilter = c.createBiquadFilter();
       strikeFilter.type = "lowpass";
@@ -142,12 +154,14 @@ export function useAudio(): UseAudioReturn {
   function toggle(): void {
     soundEnabled.value = !soundEnabled.value;
     localStorage.setItem(STORAGE_KEY, String(soundEnabled.value));
+
     if (soundEnabled.value) {
       try {
         void ctx().resume();
       } catch (_) {
         /* ignore */
       }
+
       playNewPR();
     }
   }

@@ -49,6 +49,7 @@ const allFilteredSelected = computed(
 async function doFetchRepos(tok?: string): Promise<void> {
   step.value = "loading";
   fetchError.value = "";
+
   try {
     const repos = await props.fetchRepos(tok);
     availableRepos.value = repos;
