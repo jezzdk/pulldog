@@ -72,7 +72,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
     <div class="flex items-center gap-2">
       <span
         v-if="lastUpdated"
-        class="hidden lg:block font-mono text-xs text-muted-foreground/60"
+        class="hidden lg:block font-mono text-xs text-muted-foreground"
       >
         {{ lastUpdated }}
       </span>

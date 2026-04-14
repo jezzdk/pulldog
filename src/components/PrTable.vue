@@ -190,7 +190,7 @@ function openPR(url: string): void {
               >
                 {{ pr.title }}
               </a>
-              <span class="font-mono text-[10px] text-muted-foreground/60">
+              <span class="font-mono text-[10px] text-muted-foreground">
                 #{{ pr.number }} ·
                 <template v-if="pr.reviewStatus === 'merged' && pr.mergedAt">
                   Merged
@@ -268,7 +268,7 @@ function openPR(url: string): void {
               </div>
               <span
                 v-else
-                class="font-mono text-[11px] text-muted-foreground/40"
+                class="font-mono text-[11px] text-muted-foreground"
               >
                 —
               </span>
@@ -290,7 +290,7 @@ function openPR(url: string): void {
               </div>
               <span
                 v-else
-                class="font-mono text-[11px] text-muted-foreground/40"
+                class="font-mono text-[11px] text-muted-foreground"
               >
                 —
               </span>

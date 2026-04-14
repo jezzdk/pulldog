@@ -684,7 +684,7 @@ if (canAutoConnect) {
     </main>
 
     <footer
-      class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground/40 text-right"
+      class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground text-right"
     >
       Pulldog · auto-refresh every 60s
     </footer>

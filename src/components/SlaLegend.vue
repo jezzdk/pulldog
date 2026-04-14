@@ -7,7 +7,7 @@ import { AlertTriangle, XCircle } from "lucide-vue-next";
 <template>
   <div class="flex items-center gap-2">
     <span
-      class="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/60"
+      class="font-mono text-[10px] uppercase tracking-widest text-muted-foreground"
     >
       SLA:
     </span>
