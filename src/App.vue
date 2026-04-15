@@ -105,7 +105,7 @@ function addToast(
     setTimeout(() => {
       toasts.value = toasts.value.filter((x) => x.id !== id);
     }, 300);
-  }, 4500);
+  }, 30_000);
 }
 
 // ── audio / github ────────────────────────────────────────────────
@@ -492,6 +492,7 @@ async function connect(newRepos: string[], newToken?: string): Promise<void> {
 
 async function refreshAll(): Promise<void> {
   if (!loading.value) {
+    startPolling();
     await loadAll(true);
     void loadActivity();
   }
@@ -542,20 +543,40 @@ function handleLogout(): void {
   connected.value = false;
 }
 
+const POLL_INTERVAL_S = 60;
+const pollCountdown = ref(POLL_INTERVAL_S);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
 function startPolling(): void {
   if (pollTimer !== null) {
     clearInterval(pollTimer);
   }
 
+  if (countdownTimer !== null) {
+    clearInterval(countdownTimer);
+  }
+
+  pollCountdown.value = POLL_INTERVAL_S;
+
   pollTimer = setInterval(() => {
+    pollCountdown.value = POLL_INTERVAL_S;
     void loadAll(true);
     void loadActivity();
-  }, 60_000);
+  }, POLL_INTERVAL_S * 1_000);
+
+  countdownTimer = setInterval(() => {
+    pollCountdown.value = Math.max(0, pollCountdown.value - 1);
+  }, 1_000);
 }
+
 onUnmounted(() => {
   if (pollTimer !== null) {
     clearInterval(pollTimer);
+  }
+
+  if (countdownTimer !== null) {
+    clearInterval(countdownTimer);
   }
 });
 
@@ -686,7 +707,7 @@ if (canAutoConnect) {
     <footer
       class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground text-right"
     >
-      Pulldog · auto-refresh every 60s
+      Pulldog · next refresh in {{ pollCountdown }}s
     </footer>
 
     <!-- Toasts -->

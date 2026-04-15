@@ -266,10 +266,7 @@ function openPR(url: string): void {
                   <Avatar :src="u.avatar_url + '&s=48'" :alt="u.login" />
                 </Tooltip>
               </div>
-              <span
-                v-else
-                class="font-mono text-[11px] text-muted-foreground"
-              >
+              <span v-else class="font-mono text-[11px] text-muted-foreground">
                 —
               </span>
             </td>
@@ -288,10 +285,7 @@ function openPR(url: string): void {
                   <Avatar :src="u.avatar_url + '&s=48'" :alt="u.login" />
                 </Tooltip>
               </div>
-              <span
-                v-else
-                class="font-mono text-[11px] text-muted-foreground"
-              >
+              <span v-else class="font-mono text-[11px] text-muted-foreground">
                 —
               </span>
             </td>

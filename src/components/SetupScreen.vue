@@ -4,7 +4,14 @@ import Card from "@/components/ui/Card.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
-import { RefreshCw, Zap, Lock, Search, AlertCircle, ChevronDown } from "lucide-vue-next";
+import {
+  RefreshCw,
+  Zap,
+  Lock,
+  Search,
+  AlertCircle,
+  ChevronDown,
+} from "lucide-vue-next";
 
 const props = defineProps<{
   hasEnvToken: boolean;
@@ -145,11 +152,15 @@ onMounted(() => {
               v-if="tokenGuideOpen"
               class="rounded-md border border-border bg-muted/30 px-3.5 py-3 space-y-2.5"
             >
-              <p class="font-mono text-[10.5px] font-semibold text-foreground/80 uppercase tracking-widest">
+              <p
+                class="font-mono text-[10.5px] font-semibold text-foreground/80 uppercase tracking-widest"
+              >
                 Fine-grained token (recommended)
               </p>
               <ol class="space-y-1.5 list-none">
-                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                <li
+                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                >
                   <span class="shrink-0 text-primary font-semibold">1.</span>
                   <span>
                     Open
@@ -157,28 +168,57 @@ onMounted(() => {
                       href="https://github.com/settings/personal-access-tokens/new"
                       target="_blank"
                       class="text-primary hover:underline"
-                    >github.com → Settings → Developer settings → Fine-grained tokens</a>
+                      >github.com → Settings → Developer settings → Fine-grained
+                      tokens</a
+                    >
                   </span>
                 </li>
-                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                <li
+                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                >
                   <span class="shrink-0 text-primary font-semibold">2.</span>
                   <span>Give the token a name and set an expiry date.</span>
                 </li>
-                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                <li
+                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                >
                   <span class="shrink-0 text-primary font-semibold">3.</span>
-                  <span>Under <em class="text-foreground/70 not-italic font-medium">Repository access</em>, select the repos you want to monitor.</span>
+                  <span
+                    >Under
+                    <em class="text-foreground/70 not-italic font-medium"
+                      >Repository access</em
+                    >, select the repos you want to monitor.</span
+                  >
                 </li>
-                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                <li
+                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                >
                   <span class="shrink-0 text-primary font-semibold">4.</span>
                   <span>
-                    Under <em class="text-foreground/70 not-italic font-medium">Permissions → Repository permissions</em>,
-                    set <em class="text-foreground/70 not-italic font-medium">Pull requests</em> to
-                    <span class="text-foreground/80 font-semibold">Read-only</span>.
+                    Under
+                    <em class="text-foreground/70 not-italic font-medium"
+                      >Permissions → Repository permissions</em
+                    >, set
+                    <em class="text-foreground/70 not-italic font-medium"
+                      >Pull requests</em
+                    >
+                    to
+                    <span class="text-foreground/80 font-semibold"
+                      >Read-only</span
+                    >.
                   </span>
                 </li>
-                <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                <li
+                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                >
                   <span class="shrink-0 text-primary font-semibold">5.</span>
-                  <span>Click <em class="text-foreground/70 not-italic font-medium">Generate token</em> and paste it below.</span>
+                  <span
+                    >Click
+                    <em class="text-foreground/70 not-italic font-medium"
+                      >Generate token</em
+                    >
+                    and paste it below.</span
+                  >
                 </li>
               </ol>
             </div>
