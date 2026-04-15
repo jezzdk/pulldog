@@ -167,7 +167,10 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
 );
 
 const totalOpen = computed(
-  () => baseFilteredPRs.value.filter((p) => !p.draft).length,
+  () =>
+    baseFilteredPRs.value.filter(
+      (p) => !p.draft && p.reviewStatus !== "merged",
+    ).length,
 );
 const statOpen = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
