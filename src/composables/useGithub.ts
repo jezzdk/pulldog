@@ -36,8 +36,8 @@ interface GithubRawPR {
 }
 
 export interface ActivityMetrics {
-  created7d: number;
-  merged7d: number;
+  createdInPeriod: number;
+  mergedInPeriod: number;
   avgLeadTimeHours: number | null;
 }
 
@@ -68,19 +68,84 @@ export function useGithub(token: ComputedRef<string>) {
     return r.json() as Promise<T>;
   }
 
+  /**
+   * Fetch all pages of a paginated GitHub list endpoint.
+   *
+   * @param buildPath  Called with the current page number; must include
+   *                   `per_page=100` in the URL.
+   * @param maxPages   Hard cap on pages fetched (default 5 = 500 items).
+   * @param earlyExit  Optional predicate — if it returns true for a batch,
+   *                   pagination stops after that batch is appended.
+   *                   Useful when results are sorted and we can tell the
+   *                   remaining pages are irrelevant.
+   */
+  async function ghPaginated<T>(
+    buildPath: (page: number) => string,
+    {
+      maxPages = 5,
+      earlyExit,
+      overrideToken,
+    }: {
+      maxPages?: number;
+      earlyExit?: (batch: T[]) => boolean;
+      overrideToken?: string;
+    } = {},
+  ): Promise<T[]> {
+    const result: T[] = [];
+    let page = 1;
+
+    while (page <= maxPages) {
+      const batch = await gh<T[]>(buildPath(page), overrideToken);
+      result.push(...batch);
+
+      if (batch.length < 100) {
+        break;
+      }
+
+      if (earlyExit?.(batch)) {
+        break;
+      }
+
+      page++;
+    }
+
+    return result;
+  }
+
   async function fetchRepo(repoFull: string): Promise<PullRequest[]> {
     const [owner, repo] = repoFull.split("/");
     const cutoff = Date.now() - 24 * 3_600_000;
 
-    const allRaw = await gh<GithubRawPR[]>(
-      `/repos/${owner}/${repo}/pulls?state=all&per_page=100&sort=updated&direction=desc`,
-    );
+    // Open PRs: must paginate fully — a PR that hasn't been touched in months
+    // is still open and must not be silently dropped.
+    // Closed PRs: sorted by updated desc, so once a full page has no PR merged
+    // within the cutoff window we can stop — anything deeper is older.
+    const [openRaw, closedRaw] = await Promise.all([
+      ghPaginated<GithubRawPR>(
+        (page) =>
+          `/repos/${owner}/${repo}/pulls?state=open&per_page=100&page=${page}`,
+      ),
+      ghPaginated<GithubRawPR>(
+        (page) =>
+          `/repos/${owner}/${repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc&page=${page}`,
+        {
+          earlyExit: (batch) =>
+            batch.every(
+              (pr) =>
+                pr.merged_at === null ||
+                new Date(pr.merged_at).getTime() <= cutoff,
+            ),
+        },
+      ),
+    ]);
 
-    const relevant = allRaw.filter(
-      (pr) =>
-        pr.state === "open" ||
-        (pr.merged_at !== null && new Date(pr.merged_at).getTime() > cutoff),
-    );
+    const relevant = [
+      ...openRaw,
+      ...closedRaw.filter(
+        (pr) =>
+          pr.merged_at !== null && new Date(pr.merged_at).getTime() > cutoff,
+      ),
+    ];
 
     return Promise.all(
       relevant.map(async (pr): Promise<PullRequest> => {
@@ -201,12 +266,24 @@ export function useGithub(token: ComputedRef<string>) {
     const [owner, repo] = repoFull.split("/");
     const windowStart = Date.now() - periodMs;
 
+    // Stop fetching closed PRs once a full page has no PR merged inside the
+    // window — results are sorted by updated desc so deeper pages are older.
     const [closedRaw, openRaw] = await Promise.all([
-      gh<GithubRawPR[]>(
-        `/repos/${owner}/${repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc`,
+      ghPaginated<GithubRawPR>(
+        (page) =>
+          `/repos/${owner}/${repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc&page=${page}`,
+        {
+          earlyExit: (batch) =>
+            batch.every(
+              (pr) =>
+                pr.merged_at === null ||
+                new Date(pr.merged_at).getTime() < windowStart,
+            ),
+        },
       ),
-      gh<GithubRawPR[]>(
-        `/repos/${owner}/${repo}/pulls?state=open&per_page=100`,
+      ghPaginated<GithubRawPR>(
+        (page) =>
+          `/repos/${owner}/${repo}/pulls?state=open&per_page=100&page=${page}`,
       ),
     ]);
 
@@ -218,10 +295,10 @@ export function useGithub(token: ComputedRef<string>) {
 
     const all = Object.values(byId);
 
-    const created7d = all.filter(
+    const createdInPeriod = all.filter(
       (pr) => new Date(pr.created_at).getTime() >= windowStart,
     );
-    const merged7d = all.filter(
+    const mergedInPeriod = all.filter(
       (pr) =>
         pr.merged_at !== null &&
         new Date(pr.merged_at).getTime() >= windowStart,
@@ -229,20 +306,20 @@ export function useGithub(token: ComputedRef<string>) {
 
     let avgLeadTimeHours: number | null = null;
 
-    if (merged7d.length > 0) {
-      const totalMs = merged7d.reduce((sum, pr) => {
-        return (
+    if (mergedInPeriod.length > 0) {
+      const totalMs = mergedInPeriod.reduce(
+        (sum, pr) =>
           sum +
-          (new Date(pr.merged_at!).getTime() -
-            new Date(pr.created_at).getTime())
-        );
-      }, 0);
-      avgLeadTimeHours = totalMs / merged7d.length / 3_600_000;
+          new Date(pr.merged_at!).getTime() -
+          new Date(pr.created_at).getTime(),
+        0,
+      );
+      avgLeadTimeHours = totalMs / mergedInPeriod.length / 3_600_000;
     }
 
     return {
-      created7d: created7d.length,
-      merged7d: merged7d.length,
+      createdInPeriod: createdInPeriod.length,
+      mergedInPeriod: mergedInPeriod.length,
       avgLeadTimeHours,
     };
   }
@@ -254,8 +331,17 @@ export function useGithub(token: ComputedRef<string>) {
     const [owner, repo] = repoFull.split("/");
     const windowStart = Date.now() - periodMs;
 
-    const closedRaw = await gh<GithubRawPR[]>(
-      `/repos/${owner}/${repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc`,
+    const closedRaw = await ghPaginated<GithubRawPR>(
+      (page) =>
+        `/repos/${owner}/${repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc&page=${page}`,
+      {
+        earlyExit: (batch) =>
+          batch.every(
+            (pr) =>
+              pr.merged_at === null ||
+              new Date(pr.merged_at).getTime() < windowStart,
+          ),
+      },
     );
     const mergedRecently = closedRaw.filter(
       (pr) =>
@@ -347,29 +433,12 @@ export function useGithub(token: ComputedRef<string>) {
   async function fetchAvailableRepos(
     overrideToken?: string,
   ): Promise<string[]> {
-    const result: string[] = [];
-    let page = 1;
-
-    while (page <= 5) {
-      const batch = await gh<GithubRepo[]>(
+    const repos = await ghPaginated<GithubRepo>(
+      (page) =>
         `/user/repos?per_page=100&sort=pushed&page=${page}&affiliation=owner,collaborator,organization_member`,
-        overrideToken,
-      );
-
-      for (const r of batch) {
-        if (!r.archived) {
-          result.push(r.full_name);
-        }
-      }
-
-      if (batch.length < 100) {
-        break;
-      }
-
-      page++;
-    }
-
-    return result;
+      { maxPages: 5, overrideToken },
+    );
+    return repos.filter((r) => !r.archived).map((r) => r.full_name);
   }
 
   return {

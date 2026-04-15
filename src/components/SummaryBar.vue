@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import Tooltip from "@/components/ui/Tooltip.vue";
-
-type StatPeriod = "12h" | "24h" | "7d" | "14d" | "30d";
+import type { StatPeriod } from "@/types";
 
 const PERIODS: { value: StatPeriod; label: string }[] = [
   { value: "12h", label: "12h" },
@@ -23,8 +22,8 @@ const PERIOD_LABEL: Record<StatPeriod, string> = {
 const props = withDefaults(
   defineProps<{
     totalOpen: number;
-    created7d: number | null;
-    merged7d: number | null;
+    createdInPeriod: number | null;
+    mergedInPeriod: number | null;
     avgLeadTimeHours: number | null;
     avgTimeToReviewHours: number | null;
     avgTimeToMergeHours: number | null;
@@ -33,8 +32,8 @@ const props = withDefaults(
   }>(),
   {
     totalOpen: 0,
-    created7d: null,
-    merged7d: null,
+    createdInPeriod: null,
+    mergedInPeriod: null,
     avgLeadTimeHours: null,
     avgTimeToReviewHours: null,
     avgTimeToMergeHours: null,
@@ -44,6 +43,21 @@ const props = withDefaults(
 );
 
 defineEmits<{ "update:period": [value: StatPeriod] }>();
+
+const TOOLTIPS = {
+  openPRs:
+    "Non-draft pull requests currently open\nacross all monitored repos.",
+  prsOpened: "Number of pull requests opened\nin the selected period.",
+  prsMerged: "Number of pull requests merged\nin the selected period.",
+  throughput:
+    "Merged ÷ opened.\n\nAbove 100% means you are merging faster than new work arrives and the backlog is shrinking.",
+  leadTime:
+    "Average time from when a PR was opened\nto when it was merged.\n\nGreen ≤ 24h · Yellow ≤ 72h · Red > 72h",
+  timeToReview:
+    "Average time from when a PR was opened\nto the first approval or changes-requested review.\n\nGreen ≤ 4h · Yellow ≤ 24h · Red > 24h",
+  timeToMerge:
+    "Average time from the last approval\nto when the PR was merged.\n\nGreen ≤ 4h · Yellow ≤ 24h · Red > 24h",
+} as const;
 
 const periodLabel = computed(() => PERIOD_LABEL[props.period]);
 
@@ -100,11 +114,11 @@ function timeClass(h: number | null): string {
 
 // Throughput: merged / created, unbounded — above 100% means burning backlog
 const throughput = computed((): number | null => {
-  if ((props.created7d ?? 0) === 0) {
+  if ((props.createdInPeriod ?? 0) === 0) {
     return null;
   }
 
-  return Math.round(((props.merged7d ?? 0) / props.created7d!) * 100);
+  return Math.round(((props.mergedInPeriod ?? 0) / props.createdInPeriod!) * 100);
 });
 
 const throughputLabel = computed(() =>
@@ -138,7 +152,7 @@ const throughputTooltip = computed(() => {
     throughput.value >= 100
       ? "You are shipping faster than new work arrives — backlog is shrinking."
       : "New work is arriving faster than you are shipping — backlog is growing.";
-  return `${props.merged7d} merged vs. ${props.created7d} opened ${periodLabel.value}. ${direction}`;
+  return `${props.mergedInPeriod} merged vs. ${props.createdInPeriod} opened ${periodLabel.value}. ${direction}`;
 });
 </script>
 
@@ -157,7 +171,11 @@ const throughputTooltip = computed(() => {
         />
         <span v-else>{{ totalOpen }}</span>
       </div>
-      <div class="text-xs font-medium text-foreground/80">Open PRs</div>
+      <Tooltip :text="TOOLTIPS.openPRs" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          Open PRs
+        </div>
+      </Tooltip>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         right now
       </div>
@@ -171,12 +189,16 @@ const throughputTooltip = computed(() => {
         class="font-mono text-2xl font-bold tracking-tight text-foreground leading-none mb-1"
       >
         <span
-          v-if="created7d === null"
+          v-if="createdInPeriod === null"
           class="skeleton w-8 h-6 rounded inline-block"
         />
-        <span v-else>{{ created7d }}</span>
+        <span v-else>{{ createdInPeriod }}</span>
       </div>
-      <div class="text-xs font-medium text-foreground/80">PRs opened</div>
+      <Tooltip :text="TOOLTIPS.prsOpened" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          PRs opened
+        </div>
+      </Tooltip>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         {{ periodLabel }}
       </div>
@@ -190,12 +212,16 @@ const throughputTooltip = computed(() => {
         class="font-mono text-2xl font-bold tracking-tight text-purple-400 leading-none mb-1"
       >
         <span
-          v-if="merged7d === null"
+          v-if="mergedInPeriod === null"
           class="skeleton w-8 h-6 rounded inline-block"
         />
-        <span v-else>{{ merged7d }}</span>
+        <span v-else>{{ mergedInPeriod }}</span>
       </div>
-      <div class="text-xs font-medium text-foreground/80">PRs merged</div>
+      <Tooltip :text="TOOLTIPS.prsMerged" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          PRs merged
+        </div>
+      </Tooltip>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         {{ periodLabel }}
       </div>
@@ -205,19 +231,23 @@ const throughputTooltip = computed(() => {
 
     <!-- Throughput -->
     <div class="py-4 pr-8 shrink-0">
-      <Tooltip :text="throughputTooltip" side="bottom">
-        <div
-          class="font-mono text-2xl font-bold tracking-tight leading-none mb-1"
-          :class="throughputClass"
-        >
+      <div
+        class="font-mono text-2xl font-bold tracking-tight leading-none mb-1"
+        :class="throughputClass"
+      >
+        <Tooltip :text="throughputTooltip" side="bottom">
           <span
             v-if="throughput === null && loading"
             class="skeleton w-10 h-6 rounded inline-block"
           />
           <span v-else>{{ throughputLabel }}</span>
+        </Tooltip>
+      </div>
+      <Tooltip :text="TOOLTIPS.throughput" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          Throughput
         </div>
       </Tooltip>
-      <div class="text-xs font-medium text-foreground/80">Throughput</div>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         merged / opened
       </div>
@@ -237,7 +267,11 @@ const throughputTooltip = computed(() => {
         />
         <span v-else>{{ fmtTime(avgLeadTimeHours) }}</span>
       </div>
-      <div class="text-xs font-medium text-foreground/80">Avg lead time</div>
+      <Tooltip :text="TOOLTIPS.leadTime" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          Avg lead time
+        </div>
+      </Tooltip>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         {{ periodLabel }}
       </div>
@@ -257,9 +291,11 @@ const throughputTooltip = computed(() => {
         />
         <span v-else>{{ fmtTime(avgTimeToReviewHours) }}</span>
       </div>
-      <div class="text-xs font-medium text-foreground/80">
-        Avg time to review
-      </div>
+      <Tooltip :text="TOOLTIPS.timeToReview" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          Avg time to review
+        </div>
+      </Tooltip>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         {{ periodLabel }}
       </div>
@@ -279,9 +315,11 @@ const throughputTooltip = computed(() => {
         />
         <span v-else>{{ fmtTime(avgTimeToMergeHours) }}</span>
       </div>
-      <div class="text-xs font-medium text-foreground/80">
-        Avg time to merge
-      </div>
+      <Tooltip :text="TOOLTIPS.timeToMerge" side="bottom">
+        <div class="text-xs font-medium text-foreground/80 cursor-help">
+          Avg time to merge
+        </div>
+      </Tooltip>
       <div class="font-mono text-[10px] text-muted-foreground mt-0.5">
         {{ periodLabel }}
       </div>

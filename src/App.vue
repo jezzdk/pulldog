@@ -3,6 +3,7 @@ import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import { useAudio } from "@/composables/useAudio";
 import { useGithub } from "@/composables/useGithub";
 import { slaStatus } from "@/composables/useSla";
+import type { StatPeriod } from "@/types";
 import { useTheme } from "@/composables/useTheme";
 import { usePersistedRepos } from "@/composables/usePersistedRepos";
 import { usePersistedToken } from "@/composables/usePersistedToken";
@@ -30,7 +31,6 @@ const COMMENT_FIRE_THRESHOLD = Number(
 );
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
 
-type StatPeriod = "12h" | "24h" | "7d" | "14d" | "30d";
 const STAT_PERIOD_MS: Record<StatPeriod, number> = {
   "12h": 12 * 3_600_000,
   "24h": 24 * 3_600_000,
@@ -72,8 +72,8 @@ const selectedAuthors = ref<string[]>([]);
 
 // ── activity metrics (stored per-repo so filters can reaggregate) ─
 type RepoActivity = {
-  created7d: number;
-  merged7d: number;
+  createdInPeriod: number;
+  mergedInPeriod: number;
   avgLeadTimeHours: number | null;
   avgTimeToReviewHours: number | null;
   avgTimeToMergeHours: number | null;
@@ -191,8 +191,8 @@ const filteredActivity = computed(() => {
 
   if (loaded.length === 0) {
     return {
-      created7d: null as number | null,
-      merged7d: null as number | null,
+      createdInPeriod: null as number | null,
+      mergedInPeriod: null as number | null,
       avgLeadTimeHours: null as number | null,
       avgTimeToReviewHours: null as number | null,
       avgTimeToMergeHours: null as number | null,
@@ -220,12 +220,12 @@ const filteredActivity = computed(() => {
       continue;
     }
 
-    totalCreated += a.created7d;
-    totalMerged += a.merged7d;
+    totalCreated += a.createdInPeriod;
+    totalMerged += a.mergedInPeriod;
 
     if (a.avgLeadTimeHours !== null) {
-      totalLeadMs += a.avgLeadTimeHours * 3_600_000 * a.merged7d;
-      mergedWithTime += a.merged7d;
+      totalLeadMs += a.avgLeadTimeHours * 3_600_000 * a.mergedInPeriod;
+      mergedWithTime += a.mergedInPeriod;
     }
 
     if (a.avgTimeToReviewHours !== null) {
@@ -241,8 +241,8 @@ const filteredActivity = computed(() => {
   }
 
   return {
-    created7d: totalCreated as number | null,
-    merged7d: totalMerged as number | null,
+    createdInPeriod: totalCreated,
+    mergedInPeriod: totalMerged,
     avgLeadTimeHours:
       mergedWithTime > 0 ? totalLeadMs / mergedWithTime / 3_600_000 : null,
     avgTimeToReviewHours:
@@ -340,21 +340,6 @@ async function loadAll(isRefresh = false): Promise<void> {
     if (r.status === "fulfilled") {
       const fresh = r.value;
       anyOk = true;
-
-      // Annotate SLA row CSS (open PRs only; merged/approved/changes/draft are exempt)
-      for (const p of fresh) {
-        if (
-          p.draft ||
-          p.reviewStatus === "merged" ||
-          p.reviewStatus === "approved" ||
-          p.reviewStatus === "changes"
-        ) {
-          p._slaRowCss = "";
-          continue;
-        }
-
-        p._slaRowCss = "";
-      }
 
       if (isRefresh && knownStatuses.value[repo]) {
         const prev = knownStatuses.value[repo]!;
@@ -631,8 +616,8 @@ if (canAutoConnect) {
 
     <SummaryBar
       :total-open="totalOpen"
-      :created7d="filteredActivity.created7d"
-      :merged7d="filteredActivity.merged7d"
+      :created-in-period="filteredActivity.createdInPeriod"
+      :merged-in-period="filteredActivity.mergedInPeriod"
       :avg-lead-time-hours="filteredActivity.avgLeadTimeHours"
       :avg-time-to-review-hours="filteredActivity.avgTimeToReviewHours"
       :avg-time-to-merge-hours="filteredActivity.avgTimeToMergeHours"

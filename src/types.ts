@@ -3,6 +3,7 @@
 export type ReviewStatus = "open" | "approved" | "draft" | "changes" | "merged";
 export type SlaStatus = "ok" | "warning" | "breach";
 export type Theme = "light" | "dark" | "system";
+export type StatPeriod = "12h" | "24h" | "7d" | "14d" | "30d";
 
 export interface GithubUser {
   login: string;
@@ -39,8 +40,8 @@ export interface RepoData {
 }
 
 export interface ActivityMetrics {
-  created7d: number | null;
-  merged7d: number | null;
+  createdInPeriod: number | null;
+  mergedInPeriod: number | null;
   avgLeadTimeHours: number | null;
   activityLoading: boolean;
 }
