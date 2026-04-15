@@ -405,6 +405,7 @@ async function loadAll(isRefresh = false): Promise<void> {
 
 async function loadActivity(): Promise<void> {
   activityLoading.value = true;
+  activityByRepo.value = {};
   const periodMs = STAT_PERIOD_MS[statPeriod.value];
   const results = await Promise.allSettled(
     repoList.value.map(async (repo) => {

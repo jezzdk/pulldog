@@ -189,7 +189,7 @@ const throughputTooltip = computed(() => {
         class="font-mono text-2xl font-bold tracking-tight text-foreground leading-none mb-1"
       >
         <span
-          v-if="createdInPeriod === null"
+          v-if="createdInPeriod === null && loading"
           class="skeleton w-8 h-6 rounded inline-block"
         />
         <span v-else>{{ createdInPeriod }}</span>
@@ -212,7 +212,7 @@ const throughputTooltip = computed(() => {
         class="font-mono text-2xl font-bold tracking-tight text-purple-400 leading-none mb-1"
       >
         <span
-          v-if="mergedInPeriod === null"
+          v-if="mergedInPeriod === null && loading"
           class="skeleton w-8 h-6 rounded inline-block"
         />
         <span v-else>{{ mergedInPeriod }}</span>
