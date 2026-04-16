@@ -112,9 +112,9 @@ export function useGithub(token: ComputedRef<string>) {
     return result;
   }
 
-  async function fetchRepo(repoFull: string): Promise<PullRequest[]> {
+  async function fetchRepo(repoFull: string, periodMs = 24 * 3_600_000): Promise<PullRequest[]> {
     const [owner, repo] = repoFull.split("/");
-    const cutoff = Date.now() - 24 * 3_600_000;
+    const cutoff = Date.now() - periodMs;
 
     // Open PRs: must paginate fully — a PR that hasn't been touched in months
     // is still open and must not be silently dropped.

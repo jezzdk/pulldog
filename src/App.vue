@@ -331,7 +331,8 @@ const anyVisible = computed(() =>
 // ── data loading ──────────────────────────────────────────────────
 async function loadAll(isRefresh = false): Promise<void> {
   loading.value = true;
-  const results = await Promise.allSettled(repoList.value.map(fetchRepo));
+  const periodMs = STAT_PERIOD_MS[statPeriod.value];
+  const results = await Promise.allSettled(repoList.value.map((repo) => fetchRepo(repo, periodMs)));
   let anyOk = false;
 
   for (let i = 0; i < results.length; i++) {
@@ -440,6 +441,7 @@ async function loadActivity(): Promise<void> {
 
 watch(statPeriod, () => {
   if (connected.value) {
+    void loadAll(true);
     void loadActivity();
   }
 });
