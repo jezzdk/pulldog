@@ -29,6 +29,7 @@ export interface PullRequest {
   reviewStatus: ReviewStatus;
   commentCount: number;
   repo: string;
+  updatedAt: Date;
   mergedAt?: Date;
   reviewedAt?: Date;
   _flashClass: string;

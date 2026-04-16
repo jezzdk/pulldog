@@ -713,7 +713,7 @@ if (canAutoConnect) {
       >
         <Card
           v-if="!t.out"
-          class="flex items-center gap-3 px-4 py-3 min-w-[240px] max-w-sm shadow-xl"
+          class="flex items-center gap-3 px-4 py-3 w-full max-w-sm shadow-xl"
           :class="
             t.type === 'merged' ? 'border-purple-500/30' : 'border-primary/30'
           "
@@ -723,7 +723,7 @@ if (canAutoConnect) {
             <div class="font-semibold text-foreground text-xs">
               {{ t.title }}
             </div>
-            <div class="font-mono text-[10.5px] text-muted-foreground truncate">
+            <div class="font-mono text-[10.5px] text-muted-foreground">
               {{ t.sub }}
             </div>
           </div>
