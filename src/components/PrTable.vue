@@ -1,15 +1,68 @@
 <script setup lang="ts">
+import { ref, computed } from "vue";
+import { ChevronUp, ChevronDown } from "lucide-vue-next";
 import Badge from "@/components/ui/Badge.vue";
 import Avatar from "@/components/ui/Avatar.vue";
 import Tooltip from "@/components/ui/Tooltip.vue";
 import SlaIndicator from "@/components/SlaIndicator.vue";
 import type { PullRequest, ReviewStatus } from "@/types";
 
-defineProps<{
+const props = defineProps<{
   prs: PullRequest[];
   commentFireThreshold: number;
   showRepo?: boolean;
 }>();
+
+type SortKey =
+  | "repo"
+  | "author"
+  | "assignee"
+  | "reviewers"
+  | "comments"
+  | "age"
+  | "sla";
+type SortDir = "asc" | "desc";
+
+const sortKey = ref<SortKey>("age");
+const sortDir = ref<SortDir>("asc");
+
+function toggleSort(key: SortKey): void {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  } else {
+    sortKey.value = key;
+    sortDir.value = "asc";
+  }
+}
+
+function sortValue(pr: PullRequest, key: SortKey): string | number {
+  switch (key) {
+    case "repo":
+      return pr.repo.split("/")[1].toLowerCase();
+    case "author":
+      return pr.author.login.toLowerCase();
+    case "assignee":
+      return pr.assignees.length;
+    case "reviewers":
+      return pr.requestedReviewers.length;
+    case "comments":
+      return pr.commentCount;
+    case "age":
+    case "sla":
+      return pr.createdAt.getTime();
+  }
+}
+
+const sortedPrs = computed<PullRequest[]>(() => {
+  const dir = sortDir.value === "asc" ? 1 : -1;
+  return [...props.prs].sort((a, b) => {
+    const va = sortValue(a, sortKey.value);
+    const vb = sortValue(b, sortKey.value);
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+});
 
 // ── display helpers ───────────────────────────────────────────────
 type BadgeVariant =
@@ -114,45 +167,87 @@ function openPR(url: string): void {
             </th>
             <th
               v-if="showRepo"
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-32 hidden md:table-cell"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-32 hidden md:table-cell cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('repo')"
             >
-              Repo
+              <span class="flex items-center gap-1">
+                Repo
+                <ChevronUp v-if="sortKey === 'repo' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'repo' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-32 hidden sm:table-cell"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-32 hidden sm:table-cell cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('author')"
             >
-              Author
+              <span class="flex items-center gap-1">
+                Author
+                <ChevronUp v-if="sortKey === 'author' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'author' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-20"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-20 cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('assignee')"
             >
-              Assignee
+              <span class="flex items-center gap-1">
+                Assignee
+                <ChevronUp v-if="sortKey === 'assignee' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'assignee' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-24"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-24 cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('reviewers')"
             >
-              Reviewers
+              <span class="flex items-center gap-1">
+                Reviewers
+                <ChevronUp v-if="sortKey === 'reviewers' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'reviewers' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-20 hidden sm:table-cell"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-20 hidden sm:table-cell cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('comments')"
             >
-              Comments
+              <span class="flex items-center gap-1">
+                Comments
+                <ChevronUp v-if="sortKey === 'comments' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'comments' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-12"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-12 cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('age')"
             >
-              Age
+              <span class="flex items-center gap-1">
+                Age
+                <ChevronUp v-if="sortKey === 'age' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'age' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-36"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 w-36 cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('sla')"
             >
-              SLA
+              <span class="flex items-center gap-1">
+                SLA
+                <ChevronUp v-if="sortKey === 'sla' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'sla' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="pr in prs"
+            v-for="pr in sortedPrs"
             :key="pr.id"
             :class="[
               'border-b border-border last:border-0 transition-colors cursor-pointer hover:bg-muted/20',

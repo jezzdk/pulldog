@@ -321,9 +321,7 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
 );
 
 const allFilteredPrs = computed<PullRequest[]>(() =>
-  filteredGroups.value
-    .flatMap((g) => g.prs)
-    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+  filteredGroups.value.flatMap((g) => g.prs),
 );
 
 const anyVisible = computed(() =>
