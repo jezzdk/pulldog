@@ -59,6 +59,7 @@ The worker handles the GitHub token exchange server-side so your client secret n
 wrangler login
 
 # Set production secrets (uses the production OAuth App credentials)
+cd worker
 wrangler secret put GITHUB_CLIENT_ID
 wrangler secret put GITHUB_CLIENT_SECRET
 
@@ -72,10 +73,10 @@ This gives you a worker URL like `https://pulldog-auth.<your-subdomain>.workers.
 
 ```bash
 # Copy the example and fill in your dev OAuth App credentials
-cp .dev.vars.example .dev.vars
+cp worker/.dev.vars.example worker/.dev.vars
 
 # Start the local worker (runs at http://localhost:8787)
-wrangler dev
+cd worker && wrangler dev
 ```
 
 ## Getting started
@@ -93,9 +94,9 @@ cp .env.example .env
 # Edit .env and fill in VITE_GITHUB_CLIENT_ID and VITE_GITHUB_WORKER_URL
 
 # 4. Start the local worker in a separate terminal
-cp .dev.vars.example .dev.vars
-# Edit .dev.vars with your dev OAuth App credentials
-wrangler dev
+cp worker/.dev.vars.example worker/.dev.vars
+# Edit worker/.dev.vars with your dev OAuth App credentials
+cd worker && wrangler dev
 
 # 5. Start the development server
 npm run dev
@@ -142,9 +143,9 @@ VITE_GITHUB_WORKER_URL=http://localhost:8787
 
 > **Note:** Vite bakes `VITE_*` variables into the bundle at build time. Restart `npm run dev` after any change.
 
-### Worker — `.dev.vars`
+### Worker — `worker/.dev.vars`
 
-Copy `.dev.vars.example` and fill in your **dev** OAuth App credentials:
+Copy `worker/.dev.vars.example` and fill in your **dev** OAuth App credentials:
 
 ```env
 GITHUB_CLIENT_ID=your_dev_client_id
@@ -158,7 +159,9 @@ Production secrets are stored in Cloudflare (via `wrangler secret put`) and neve
 ```
 pulldog/
 ├── worker/
-│   └── index.js             # Cloudflare Worker — GitHub token exchange
+│   ├── index.js             # Cloudflare Worker — GitHub token exchange
+│   ├── wrangler.toml        # Worker-only Cloudflare config
+│   └── .dev.vars.example    # Worker local secrets template
 ├── src/
 │   ├── components/
 │   │   ├── ui/              # shadcn-style primitive components
@@ -180,9 +183,7 @@ pulldog/
 │   ├── base.css
 │   ├── main.ts
 │   └── vite-env.d.ts
-├── .dev.vars.example        # Worker local secrets template
 ├── .env.example             # Frontend env template
-├── wrangler.toml            # Cloudflare Worker config
 ├── vite.config.ts
 └── package.json
 ```
@@ -195,8 +196,8 @@ pulldog/
 | `npm run build` | Build for production (outputs to `dist/`) |
 | `npm run preview` | Preview the production build locally |
 | `npm run type-check` | Run TypeScript type checking via `vue-tsc` |
-| `wrangler dev` | Run the auth worker locally on port 8787 |
-| `wrangler deploy` | Deploy the worker to Cloudflare |
+| `cd worker && wrangler dev` | Run the auth worker locally on port 8787 |
+| `cd worker && wrangler deploy` | Deploy the worker to Cloudflare |
 
 ## Building for production
 
