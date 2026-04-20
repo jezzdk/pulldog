@@ -1,5 +1,5 @@
 name = "pulldog-auth"
-main = "worker/index.js"
+main = "index.js"
 compatibility_date = "2025-04-20"
 
 [vars]
