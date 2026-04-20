@@ -20,6 +20,7 @@
 - **Light / dark / system theme** — persisted to `localStorage`, respects OS preference in system mode
 - **Auto-refresh** — polls GitHub every 60 seconds; detects new and merged PRs and plays the appropriate sound
 - **Filters** — by status, SLA state, repo, author, staleness (7d+), or free-text search
+- **GitHub OAuth** — one-click "Connect with GitHub" via a Cloudflare Worker; no token copy-pasting required
 
 ## Screenshots
 
@@ -30,7 +31,52 @@
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) v18 or later
-- A GitHub [Personal Access Token](https://github.com/settings/tokens) with the `repo` scope
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) for the auth worker (`npm i -g wrangler`)
+- A Cloudflare account (free tier is sufficient)
+- A GitHub OAuth App (see setup below)
+
+## GitHub OAuth App setup
+
+You need **two** OAuth Apps — one for development, one for production — because each only supports a single callback URL.
+
+1. Go to **github.com → Settings → Developer settings → OAuth Apps → New OAuth App**
+2. Create the **development** app:
+   - Homepage URL: `http://localhost:5173`
+   - Authorization callback URL: `http://localhost:5173`
+3. Create the **production** app:
+   - Homepage URL: `https://pulldog.dev` _(or your domain)_
+   - Authorization callback URL: `https://pulldog.dev`
+4. Note the **Client ID** and generate a **Client secret** for each app
+
+## Cloudflare Worker setup
+
+The worker handles the GitHub token exchange server-side so your client secret never touches the browser.
+
+### Deploy to production
+
+```bash
+# Authenticate with Cloudflare
+wrangler login
+
+# Set production secrets (uses the production OAuth App credentials)
+wrangler secret put GITHUB_CLIENT_ID
+wrangler secret put GITHUB_CLIENT_SECRET
+
+# Deploy
+wrangler deploy
+```
+
+This gives you a worker URL like `https://pulldog-auth.<your-subdomain>.workers.dev`.
+
+### Run locally
+
+```bash
+# Copy the example and fill in your dev OAuth App credentials
+cp .dev.vars.example .dev.vars
+
+# Start the local worker (runs at http://localhost:8787)
+wrangler dev
+```
 
 ## Getting started
 
@@ -44,20 +90,37 @@ npm install
 
 # 3. Configure environment variables
 cp .env.example .env
+# Edit .env and fill in VITE_GITHUB_CLIENT_ID and VITE_GITHUB_WORKER_URL
 
-# 4. Start the development server
+# 4. Start the local worker in a separate terminal
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars with your dev OAuth App credentials
+wrangler dev
+
+# 5. Start the development server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173), enter the repositories you want to watch, then click **Connect**.
+Open [http://localhost:5173](http://localhost:5173) and click **Connect with GitHub**.
 
 ## Configuration
 
-All configuration lives in `.env`. Copy `.env.example` to get started:
+### Frontend — `.env`
+
+Copy `.env.example` to get started:
 
 ```env
-# GitHub Personal Access Token (repo scope required) — REQUIRED
-VITE_GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+# GitHub OAuth App Client ID (dev app for local, prod app for production)
+VITE_GITHUB_CLIENT_ID=your_client_id
+
+# URL of your deployed Cloudflare Worker
+VITE_GITHUB_WORKER_URL=https://pulldog-auth.<your-subdomain>.workers.dev
+
+# Override the OAuth redirect URI (defaults to window.location.origin)
+VITE_GITHUB_REDIRECT_URI=
+
+# Optional: bake a token directly into the bundle (skips the OAuth flow)
+VITE_GITHUB_TOKEN=
 
 # Hours until a PR row turns amber (SLA warning)
 VITE_SLA_WARNING_HOURS=24
@@ -69,47 +132,57 @@ VITE_SLA_BREACH_HOURS=72
 VITE_COMMENT_FIRE_THRESHOLD=10
 ```
 
-> **Note:** Vite bakes `VITE_*` variables into the bundle at build time. Restart `npm run dev` after any change to `.env`.
+For local development, override `VITE_GITHUB_WORKER_URL` to point at the local worker:
 
-`VITE_GITHUB_TOKEN` is required — the app will show an error on the setup screen if it is not set. The token is never written to `localStorage`; it lives only in the compiled bundle.
+```env
+# .env.local (git-ignored, overrides .env in dev)
+VITE_GITHUB_CLIENT_ID=your_dev_client_id
+VITE_GITHUB_WORKER_URL=http://localhost:8787
+```
+
+> **Note:** Vite bakes `VITE_*` variables into the bundle at build time. Restart `npm run dev` after any change.
+
+### Worker — `.dev.vars`
+
+Copy `.dev.vars.example` and fill in your **dev** OAuth App credentials:
+
+```env
+GITHUB_CLIENT_ID=your_dev_client_id
+GITHUB_CLIENT_SECRET=your_dev_client_secret
+```
+
+Production secrets are stored in Cloudflare (via `wrangler secret put`) and never committed.
 
 ## Project structure
 
 ```
 pulldog/
+├── worker/
+│   └── index.js             # Cloudflare Worker — GitHub token exchange
 ├── src/
 │   ├── components/
-│   │   ├── ui/                  # shadcn-style primitive components
-│   │   │   ├── Avatar.vue
-│   │   │   ├── Badge.vue
-│   │   │   ├── Button.vue
-│   │   │   ├── Card.vue
-│   │   │   ├── Dialog.vue
-│   │   │   ├── Input.vue
-│   │   │   ├── Label.vue
-│   │   │   ├── MultiSelect.vue
-│   │   │   ├── Progress.vue
-│   │   │   ├── Textarea.vue
-│   │   │   ├── ThemeToggle.vue
-│   │   │   └── Tooltip.vue
-│   │   ├── SlaIndicator.vue     # Per-row SLA badge
-│   │   ├── SlaLegend.vue        # Filter bar legend
-│   │   └── SummaryBar.vue       # 7-day metrics strip
+│   │   ├── ui/              # shadcn-style primitive components
+│   │   ├── SetupScreen.vue  # OAuth + manual token onboarding flow
+│   │   ├── SettingsDialog.vue
+│   │   ├── SlaLegend.vue
+│   │   ├── SummaryBar.vue
+│   │   └── Topbar.vue
 │   ├── composables/
-│   │   ├── useAudio.ts          # Web Audio API sounds
-│   │   ├── useGithub.ts         # GitHub REST API calls
-│   │   ├── useSla.ts            # SLA threshold logic
-│   │   └── useTheme.ts          # Light/dark/system theme
-│   ├── lib/
-│   │   └── utils.ts             # cn() helper (clsx + tailwind-merge)
-│   ├── types.ts                 # Shared TypeScript interfaces
-│   ├── App.vue                  # Root component and dashboard layout
-│   ├── base.css                 # Tailwind directives + CSS variable themes
+│   │   ├── useAudio.ts      # Web Audio API sounds
+│   │   ├── useGithub.ts     # GitHub REST API calls
+│   │   ├── useGithubOAuth.ts  # GitHub OAuth flow + callback handling
+│   │   ├── usePersistedRepos.ts
+│   │   ├── usePersistedToken.ts
+│   │   ├── useSla.ts        # SLA threshold logic
+│   │   └── useTheme.ts      # Light/dark/system theme
+│   ├── types.ts
+│   ├── App.vue
+│   ├── base.css
 │   ├── main.ts
 │   └── vite-env.d.ts
-├── .env.example
-├── tailwind.config.js
-├── tsconfig.json
+├── .dev.vars.example        # Worker local secrets template
+├── .env.example             # Frontend env template
+├── wrangler.toml            # Cloudflare Worker config
 ├── vite.config.ts
 └── package.json
 ```
@@ -122,6 +195,8 @@ pulldog/
 | `npm run build` | Build for production (outputs to `dist/`) |
 | `npm run preview` | Preview the production build locally |
 | `npm run type-check` | Run TypeScript type checking via `vue-tsc` |
+| `wrangler dev` | Run the auth worker locally on port 8787 |
+| `wrangler deploy` | Deploy the worker to Cloudflare |
 
 ## Building for production
 
@@ -129,14 +204,7 @@ pulldog/
 npm run build
 ```
 
-The `dist/` directory contains a fully static build you can deploy to any static host — Vercel, Netlify, GitHub Pages, Cloudflare Pages, or your own server.
-
-Example with the Vercel CLI:
-
-```bash
-npm i -g vercel
-vercel --prod
-```
+The `dist/` directory is a fully static build. Deploy it to Cloudflare Pages, Vercel, Netlify, or any static host.
 
 ## Contributing
 
@@ -156,8 +224,6 @@ Contributions are welcome! Here's how to get involved:
    ```
 4. **Push** your branch and open a **Pull Request** against `main`
 
-Please keep pull requests focused — one feature or fix per PR makes review much easier.
-
 ### Reporting issues
 
 Open an [issue](../../issues) and include:
@@ -176,19 +242,19 @@ Pulldog has a built-in **fullscreen toggle** (⛶ button in the top-right corner
 
 Press **Esc** or click the button again to exit.
 
-For a permanent TV kiosk setup, launch Chrome or Chromium directly into kiosk mode pointing at your deployed Pulldog URL:
+For a permanent TV kiosk setup, launch Chrome or Chromium directly into kiosk mode:
 
 ```bash
 # Linux / Raspberry Pi
-chromium-browser --kiosk --noerrdialogs --disable-infobars https://your-pulldog-url.com
+chromium-browser --kiosk --noerrdialogs --disable-infobars https://pulldog.dev
 
 # macOS
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --kiosk --noerrdialogs https://your-pulldog-url.com
+  --kiosk --noerrdialogs https://pulldog.dev
 
 # Windows
 "C:\Program Files\Google\Chrome\Application\chrome.exe" ^
-  --kiosk --noerrdialogs https://your-pulldog-url.com
+  --kiosk --noerrdialogs https://pulldog.dev
 ```
 
-Set `VITE_GITHUB_TOKEN` and pre-seed repos in `.env` before building so the dashboard connects automatically without any interaction needed on boot.
+Set `VITE_GITHUB_TOKEN` in `.env` before building to pre-seed a token so the dashboard connects automatically on boot without any interaction.

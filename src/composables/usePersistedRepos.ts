@@ -3,7 +3,7 @@
 
 import { ref, watch, type Ref } from "vue";
 
-const STORAGE_KEY = "pulldog-repos";
+export const REPOS_KEY = "pulldog-repos";
 
 interface UsePersistedReposReturn {
   reposText: Ref<string>;
@@ -15,7 +15,7 @@ interface UsePersistedReposReturn {
 
 export function usePersistedRepos(): UsePersistedReposReturn {
   // Seed from localStorage on first load
-  const stored = localStorage.getItem(STORAGE_KEY) ?? "";
+  const stored = localStorage.getItem(REPOS_KEY) ?? "";
   const reposText = ref<string>(stored);
 
   const repoList = ref<string[]>(
@@ -31,7 +31,7 @@ export function usePersistedRepos(): UsePersistedReposReturn {
       .split("\n")
       .map((r) => r.trim())
       .filter(Boolean);
-    localStorage.setItem(STORAGE_KEY, text);
+    localStorage.setItem(REPOS_KEY, text);
   }
 
   function saveList(repos: string[]): void {
@@ -41,7 +41,7 @@ export function usePersistedRepos(): UsePersistedReposReturn {
   function clear(): void {
     reposText.value = "";
     repoList.value = [];
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(REPOS_KEY);
   }
 
   // Keep repoList in sync if reposText is mutated directly
@@ -50,7 +50,7 @@ export function usePersistedRepos(): UsePersistedReposReturn {
       .split("\n")
       .map((r) => r.trim())
       .filter(Boolean);
-    localStorage.setItem(STORAGE_KEY, val);
+    localStorage.setItem(REPOS_KEY, val);
   });
 
   return { reposText, repoList, save, saveList, clear };

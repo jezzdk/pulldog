@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { useGithubOAuth, TOKEN_SOURCE_KEY } from "@/composables/useGithubOAuth";
 import { useAudio } from "@/composables/useAudio";
 import { useGithub } from "@/composables/useGithub";
 import { slaStatus } from "@/composables/useSla";
 import type { StatPeriod } from "@/types";
 import { useTheme } from "@/composables/useTheme";
-import { usePersistedRepos } from "@/composables/usePersistedRepos";
-import { usePersistedToken } from "@/composables/usePersistedToken";
+import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
+import { usePersistedToken, TOKEN_KEY } from "@/composables/usePersistedToken";
 import type { PullRequest, ReviewStatus, Toast, FilteredGroup } from "@/types";
 
 import SetupScreen from "@/components/SetupScreen.vue";
@@ -42,6 +43,8 @@ const STAT_PERIOD_MS: Record<StatPeriod, number> = {
 // ── persisted repos + token ───────────────────────────────────────
 const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
+const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
+const oauth = useGithubOAuth();
 
 // ── session state ─────────────────────────────────────────────────
 const connected = ref(false);
@@ -51,8 +54,6 @@ const showSettings = ref(false);
 const showLogoutConfirm = ref(false);
 const lastUpdated = ref("");
 
-// Auto-connect if we have both a token and saved repos
-const canAutoConnect = token.value.length > 0 && repoList.value.length > 0;
 
 // ── data ──────────────────────────────────────────────────────────
 type RepoEntry = PullRequest[] | { error: string };
@@ -446,6 +447,14 @@ watch(statPeriod, () => {
   }
 });
 
+async function resetToken(): Promise<void> {
+  await oauth.revokeToken(token.value);
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REPOS_KEY);
+  localStorage.removeItem(TOKEN_SOURCE_KEY);
+  window.location.reload();
+}
+
 async function connect(newRepos: string[], newToken?: string): Promise<void> {
   setupError.value = "";
 
@@ -516,8 +525,9 @@ function handleLogout(): void {
     pollTimer = null;
   }
 
-  localStorage.removeItem("pulldog-repos");
-  localStorage.removeItem("pulldog-token");
+  localStorage.removeItem(REPOS_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_SOURCE_KEY);
   token.value = "";
   repoList.value.splice(0);
   prData.value = {};
@@ -569,10 +579,16 @@ onUnmounted(() => {
   }
 });
 
-// Auto-connect on mount if token + repos are already available
-if (canAutoConnect) {
-  void connect(repoList.value);
-}
+onMounted(async () => {
+  const callbackToken = await oauth.handleCallback();
+  if (callbackToken) {
+    token.value = callbackToken;
+    saveToken(callbackToken);
+  }
+  if (token.value && repoList.value.length) {
+    void connect(repoList.value);
+  }
+});
 </script>
 
 <template>
@@ -585,6 +601,10 @@ if (canAutoConnect) {
     :fetch-repos="fetchAvailableRepos"
     :loading="loading"
     :error="setupError"
+    :client-id="githubClientId"
+    :oauth-state="oauth.state.value"
+    @connect-with-github="oauth.startRedirect(githubClientId)"
+    @reset-token="resetToken"
     @connect="connect"
   />
 

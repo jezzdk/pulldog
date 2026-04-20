@@ -1,7 +1,7 @@
 // composables/usePersistedToken.ts
 import { ref, type Ref } from "vue";
 
-const STORAGE_KEY = "pulldog-token";
+export const TOKEN_KEY = "pulldog-token";
 const ENV_TOKEN =
   (import.meta.env.VITE_GITHUB_TOKEN as string | undefined) ?? "";
 
@@ -19,12 +19,12 @@ export function usePersistedToken(): UsePersistedTokenReturn {
       return ENV_TOKEN;
     }
 
-    return localStorage.getItem(STORAGE_KEY) ?? "";
+    return localStorage.getItem(TOKEN_KEY) ?? "";
   }
 
   function save(value: string): void {
     if (!hasEnvToken) {
-      localStorage.setItem(STORAGE_KEY, value);
+      localStorage.setItem(TOKEN_KEY, value);
     }
   }
 

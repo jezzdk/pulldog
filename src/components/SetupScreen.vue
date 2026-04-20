@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import Card from "@/components/ui/Card.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
@@ -11,6 +11,7 @@ import {
   Search,
   AlertCircle,
   ChevronDown,
+  Github,
 } from "lucide-vue-next";
 
 const props = defineProps<{
@@ -20,13 +21,16 @@ const props = defineProps<{
   fetchRepos: (token?: string) => Promise<string[]>;
   loading: boolean;
   error: string;
+  clientId: string;
+  oauthState: { status: "idle" | "redirecting" | "exchanging" | "success" | "error"; message?: string; token?: string };
 }>();
 
 const emit = defineEmits<{
   connect: [repos: string[], token?: string];
+  connectWithGithub: [];
+  resetToken: [];
 }>();
 
-// Whether we have a usable token already (env or localStorage)
 const hasExistingToken = computed(
   () => props.hasEnvToken || props.initialToken.length > 0,
 );
@@ -40,6 +44,19 @@ const availableRepos = ref<string[]>([]);
 const selectedRepos = ref<string[]>([...props.initialSelected]);
 const search = ref("");
 const fetchError = ref("");
+const showManualPat = ref(!props.clientId);
+
+watch(
+  () => props.oauthState,
+  (s) => {
+    if (s.status === "error") showManualPat.value = true;
+    if (s.status === "success" && s.token) {
+      tokenInput.value = s.token;
+      void doFetchRepos(s.token);
+    }
+  },
+  { deep: true },
+);
 
 const filteredRepos = computed(() => {
   const q = search.value.toLowerCase();
@@ -61,7 +78,6 @@ async function doFetchRepos(tok?: string): Promise<void> {
   try {
     const repos = await props.fetchRepos(tok);
     availableRepos.value = repos;
-    // Keep previously selected repos that are still accessible
     selectedRepos.value = selectedRepos.value.filter((r) => repos.includes(r));
     step.value = "repos";
   } catch (e) {
@@ -96,7 +112,6 @@ function toggleAll(): void {
     : [...new Set([...selectedRepos.value, ...filteredRepos.value])];
 }
 
-// Auto-fetch if we already have a token
 onMounted(() => {
   if (hasExistingToken.value) {
     void doFetchRepos(props.hasEnvToken ? undefined : props.initialToken);
@@ -131,124 +146,160 @@ onMounted(() => {
       <div class="space-y-5">
         <!-- ── Step: Token input ── -->
         <template v-if="step === 'token'">
-          <div class="space-y-1.5">
-            <div class="flex items-center justify-between">
-              <Label>GitHub Token</Label>
-              <button
-                type="button"
-                class="flex items-center gap-1 font-mono text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
-                @click="tokenGuideOpen = !tokenGuideOpen"
-              >
-                How to create one
-                <ChevronDown
-                  class="h-3 w-3 transition-transform duration-200"
-                  :class="tokenGuideOpen ? 'rotate-180' : ''"
-                />
-              </button>
-            </div>
 
-            <!-- Token creation guide -->
-            <div
-              v-if="tokenGuideOpen"
-              class="rounded-md border border-border bg-muted/30 px-3.5 py-3 space-y-2.5"
-            >
-              <p
-                class="font-mono text-[10.5px] font-semibold text-foreground/80 uppercase tracking-widest"
-              >
-                Fine-grained token (recommended)
+          <!-- OAuth: redirecting to GitHub -->
+          <template v-if="oauthState.status === 'redirecting'">
+            <div class="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+              <RefreshCw class="h-5 w-5 animate-spin" />
+              <span class="font-mono text-xs">Redirecting to GitHub…</span>
+            </div>
+          </template>
+
+          <!-- OAuth: exchanging code for token (callback landed) -->
+          <template v-else-if="oauthState.status === 'exchanging'">
+            <div class="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+              <RefreshCw class="h-5 w-5 animate-spin" />
+              <span class="font-mono text-xs">Completing authorization…</span>
+            </div>
+          </template>
+
+          <!-- OAuth: error -->
+          <template v-else-if="oauthState.status === 'error'">
+            <div class="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2.5">
+              <AlertCircle class="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+              <p class="font-mono text-[11px] text-destructive">
+                {{ oauthState.message }}
               </p>
-              <ol class="space-y-1.5 list-none">
-                <li
-                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
-                >
-                  <span class="shrink-0 text-primary font-semibold">1.</span>
-                  <span>
-                    Open
-                    <a
-                      href="https://github.com/settings/personal-access-tokens/new"
-                      target="_blank"
-                      class="text-primary hover:underline"
-                      >github.com → Settings → Developer settings → Fine-grained
-                      tokens</a
-                    >
-                  </span>
-                </li>
-                <li
-                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
-                >
-                  <span class="shrink-0 text-primary font-semibold">2.</span>
-                  <span>Give the token a name and set an expiry date.</span>
-                </li>
-                <li
-                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
-                >
-                  <span class="shrink-0 text-primary font-semibold">3.</span>
-                  <span
-                    >Under
-                    <em class="text-foreground/70 not-italic font-medium"
-                      >Repository access</em
-                    >, select the repos you want to monitor.</span
-                  >
-                </li>
-                <li
-                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
-                >
-                  <span class="shrink-0 text-primary font-semibold">4.</span>
-                  <span>
-                    Under
-                    <em class="text-foreground/70 not-italic font-medium"
-                      >Permissions → Repository permissions</em
-                    >, set
-                    <em class="text-foreground/70 not-italic font-medium"
-                      >Pull requests</em
-                    >
-                    to
-                    <span class="text-foreground/80 font-semibold"
-                      >Read-only</span
-                    >.
-                  </span>
-                </li>
-                <li
-                  class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
-                >
-                  <span class="shrink-0 text-primary font-semibold">5.</span>
-                  <span
-                    >Click
-                    <em class="text-foreground/70 not-italic font-medium"
-                      >Generate token</em
-                    >
-                    and paste it below.</span
-                  >
-                </li>
-              </ol>
+            </div>
+            <Button class="w-full gap-2" @click="emit('connectWithGithub')">
+              <Github class="h-4 w-4" />
+              Try again with GitHub
+            </Button>
+            <div class="relative flex items-center gap-3">
+              <div class="flex-1 border-t border-border" />
+              <span class="font-mono text-[10px] text-muted-foreground">or</span>
+              <div class="flex-1 border-t border-border" />
+            </div>
+          </template>
+
+          <!-- OAuth idle: primary connect button -->
+          <template v-else-if="clientId && oauthState.status === 'idle'">
+            <Button class="w-full gap-2" @click="emit('connectWithGithub')">
+              <Github class="h-4 w-4" />
+              Connect with GitHub
+            </Button>
+
+            <div class="relative flex items-center gap-3">
+              <div class="flex-1 border-t border-border" />
+              <span class="font-mono text-[10px] text-muted-foreground">or</span>
+              <div class="flex-1 border-t border-border" />
             </div>
 
-            <Input
-              v-model="tokenInput"
-              type="password"
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              @keydown.enter="handleConnect"
-            />
-          </div>
+            <button
+              v-if="!showManualPat"
+              type="button"
+              class="w-full font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors text-center"
+              @click="showManualPat = true"
+            >
+              enter a token manually
+            </button>
+          </template>
 
-          <div
-            class="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
-          >
-            <Lock class="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-            <p class="font-mono text-[10.5px] text-muted-foreground">
-              Everything stays in your browser. Your token and repo list are
-              never sent to any server — all GitHub API calls are made directly
-              from your machine.
-            </p>
-          </div>
+          <!-- Manual PAT input -->
+          <template v-if="!clientId || showManualPat">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <Label>GitHub Token</Label>
+                <button
+                  type="button"
+                  class="flex items-center gap-1 font-mono text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
+                  @click="tokenGuideOpen = !tokenGuideOpen"
+                >
+                  How to create one
+                  <ChevronDown
+                    class="h-3 w-3 transition-transform duration-200"
+                    :class="tokenGuideOpen ? 'rotate-180' : ''"
+                  />
+                </button>
+              </div>
 
-          <Button
-            class="w-full"
-            :disabled="!tokenInput.trim()"
-            @click="handleConnect"
-          >
-            Connect →
-          </Button>
+              <div
+                v-if="tokenGuideOpen"
+                class="rounded-md border border-border bg-muted/30 px-3.5 py-3 space-y-2.5"
+              >
+                <p
+                  class="font-mono text-[10.5px] font-semibold text-foreground/80 uppercase tracking-widest"
+                >
+                  Fine-grained token (recommended)
+                </p>
+                <ol class="space-y-1.5 list-none">
+                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                    <span class="shrink-0 text-primary font-semibold">1.</span>
+                    <span>
+                      Open
+                      <a
+                        href="https://github.com/settings/personal-access-tokens/new"
+                        target="_blank"
+                        class="text-primary hover:underline"
+                        >github.com → Settings → Developer settings → Fine-grained tokens</a
+                      >
+                    </span>
+                  </li>
+                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                    <span class="shrink-0 text-primary font-semibold">2.</span>
+                    <span>Give the token a name and set an expiry date.</span>
+                  </li>
+                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                    <span class="shrink-0 text-primary font-semibold">3.</span>
+                    <span
+                      >Under
+                      <em class="text-foreground/70 not-italic font-medium">Repository access</em>,
+                      select the repos you want to monitor.</span
+                    >
+                  </li>
+                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                    <span class="shrink-0 text-primary font-semibold">4.</span>
+                    <span>
+                      Under
+                      <em class="text-foreground/70 not-italic font-medium">Permissions → Repository permissions</em>,
+                      set <em class="text-foreground/70 not-italic font-medium">Pull requests</em> to
+                      <span class="text-foreground/80 font-semibold">Read-only</span>.
+                    </span>
+                  </li>
+                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                    <span class="shrink-0 text-primary font-semibold">5.</span>
+                    <span>Click <em class="text-foreground/70 not-italic font-medium">Generate token</em> and paste it below.</span>
+                  </li>
+                </ol>
+              </div>
+
+              <Input
+                v-model="tokenInput"
+                type="password"
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                @keydown.enter="handleConnect"
+              />
+            </div>
+
+            <div
+              class="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+            >
+              <Lock class="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+              <p class="font-mono text-[10.5px] text-muted-foreground">
+                Everything stays in your browser. Your token and repo list are
+                never sent to any server — all GitHub API calls are made directly
+                from your machine.
+              </p>
+            </div>
+
+            <Button
+              class="w-full"
+              :disabled="!tokenInput.trim()"
+              @click="handleConnect"
+            >
+              Connect →
+            </Button>
+          </template>
         </template>
 
         <!-- ── Step: Loading repos ── -->
@@ -286,7 +337,6 @@ onMounted(() => {
 
         <!-- ── Step: Repo list ── -->
         <template v-else-if="step === 'repos'">
-          <!-- Search -->
           <div class="relative">
             <Search
               class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none"
@@ -298,23 +348,17 @@ onMounted(() => {
             />
           </div>
 
-          <!-- Repo list -->
           <div
             v-if="availableRepos.length"
             class="rounded-md border border-border overflow-hidden"
           >
-            <!-- Select all row -->
             <button
               class="flex w-full items-center gap-2.5 border-b border-border px-3 py-2 hover:bg-muted/40 transition-colors"
               @click="toggleAll"
             >
               <span
                 class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
-                :class="
-                  allFilteredSelected
-                    ? 'border-primary bg-primary'
-                    : 'border-border'
-                "
+                :class="allFilteredSelected ? 'border-primary bg-primary' : 'border-border'"
               >
                 <svg
                   v-if="allFilteredSelected"
@@ -324,11 +368,7 @@ onMounted(() => {
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <path
-                    d="M1.5 5l2.5 2.5 4.5-4"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
+                  <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </span>
               <span class="font-mono text-[11px] text-muted-foreground">
@@ -336,7 +376,6 @@ onMounted(() => {
               </span>
             </button>
 
-            <!-- Individual repos -->
             <div class="max-h-56 overflow-y-auto">
               <button
                 v-for="repo in filteredRepos"
@@ -346,11 +385,7 @@ onMounted(() => {
               >
                 <span
                   class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
-                  :class="
-                    selectedRepos.includes(repo)
-                      ? 'border-primary bg-primary'
-                      : 'border-border'
-                  "
+                  :class="selectedRepos.includes(repo) ? 'border-primary bg-primary' : 'border-border'"
                 >
                   <svg
                     v-if="selectedRepos.includes(repo)"
@@ -360,11 +395,7 @@ onMounted(() => {
                     stroke="currentColor"
                     stroke-width="2"
                   >
-                    <path
-                      d="M1.5 5l2.5 2.5 4.5-4"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </span>
                 <span class="font-mono text-[11px] text-foreground truncate">
@@ -388,7 +419,6 @@ onMounted(() => {
             No repositories found for this token.
           </p>
 
-          <!-- Connect error (from App.vue after Start Watching) -->
           <p
             v-if="error"
             class="rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2 font-mono text-[11px] text-destructive"
@@ -410,6 +440,15 @@ onMounted(() => {
               </span>
             </span>
           </Button>
+
+          <button
+            v-if="clientId"
+            type="button"
+            class="w-full font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors text-center"
+            @click="emit('resetToken')"
+          >
+            Wrong permissions? Reconnect with GitHub
+          </button>
         </template>
       </div>
     </Card>
