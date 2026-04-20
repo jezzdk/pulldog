@@ -1,9 +1,10 @@
-// composables/usePersistedRepos.ts
-// Persists the repo list to localStorage so it survives page refreshes.
-
 import { ref, watch, type Ref } from "vue";
 
 export const REPOS_KEY = "pulldog-repos";
+
+function parseRepos(text: string): string[] {
+  return text.split("\n").map((r) => r.trim()).filter(Boolean);
+}
 
 interface UsePersistedReposReturn {
   reposText: Ref<string>;
@@ -14,23 +15,13 @@ interface UsePersistedReposReturn {
 }
 
 export function usePersistedRepos(): UsePersistedReposReturn {
-  // Seed from localStorage on first load
   const stored = localStorage.getItem(REPOS_KEY) ?? "";
   const reposText = ref<string>(stored);
-
-  const repoList = ref<string[]>(
-    stored
-      .split("\n")
-      .map((r) => r.trim())
-      .filter(Boolean),
-  );
+  const repoList = ref<string[]>(parseRepos(stored));
 
   function save(text: string): void {
     reposText.value = text;
-    repoList.value = text
-      .split("\n")
-      .map((r) => r.trim())
-      .filter(Boolean);
+    repoList.value = parseRepos(text);
     localStorage.setItem(REPOS_KEY, text);
   }
 
@@ -44,12 +35,8 @@ export function usePersistedRepos(): UsePersistedReposReturn {
     localStorage.removeItem(REPOS_KEY);
   }
 
-  // Keep repoList in sync if reposText is mutated directly
   watch(reposText, (val) => {
-    repoList.value = val
-      .split("\n")
-      .map((r) => r.trim())
-      .filter(Boolean);
+    repoList.value = parseRepos(val);
     localStorage.setItem(REPOS_KEY, val);
   });
 

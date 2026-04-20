@@ -4,6 +4,8 @@ import Card from "@/components/ui/Card.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
+import RepoPickerList from "@/components/RepoPickerList.vue";
+import { useRepoSelector } from "@/composables/useRepoSelector";
 import {
   RefreshCw,
   Zap,
@@ -40,11 +42,20 @@ const step = ref<Step>(hasExistingToken.value ? "loading" : "token");
 
 const tokenInput = ref(props.initialToken);
 const tokenGuideOpen = ref(false);
-const availableRepos = ref<string[]>([]);
-const selectedRepos = ref<string[]>([...props.initialSelected]);
-const search = ref("");
-const fetchError = ref("");
 const showManualPat = ref(!props.clientId);
+
+const {
+  search,
+  availableRepos,
+  selectedRepos,
+  filteredRepos,
+  allFilteredSelected,
+  fetchState,
+  fetchError,
+  toggleRepo,
+  toggleAll,
+  load,
+} = useRepoSelector(props.fetchRepos, props.initialSelected);
 
 watch(
   () => props.oauthState,
@@ -58,33 +69,10 @@ watch(
   { deep: true },
 );
 
-const filteredRepos = computed(() => {
-  const q = search.value.toLowerCase();
-  return q
-    ? availableRepos.value.filter((r) => r.toLowerCase().includes(q))
-    : availableRepos.value;
-});
-
-const allFilteredSelected = computed(
-  () =>
-    filteredRepos.value.length > 0 &&
-    filteredRepos.value.every((r) => selectedRepos.value.includes(r)),
-);
-
 async function doFetchRepos(tok?: string): Promise<void> {
   step.value = "loading";
-  fetchError.value = "";
-
-  try {
-    const repos = await props.fetchRepos(tok);
-    availableRepos.value = repos;
-    selectedRepos.value = selectedRepos.value.filter((r) => repos.includes(r));
-    step.value = "repos";
-  } catch (e) {
-    fetchError.value =
-      e instanceof Error ? e.message : "Failed to fetch repositories";
-    step.value = "error";
-  }
+  await load(tok);
+  step.value = fetchState.value === "error" ? "error" : "repos";
 }
 
 function handleConnect(): void {
@@ -98,18 +86,6 @@ function handleStart(): void {
     selectedRepos.value,
     props.hasEnvToken ? undefined : tokenInput.value.trim(),
   );
-}
-
-function toggleRepo(repo: string): void {
-  selectedRepos.value = selectedRepos.value.includes(repo)
-    ? selectedRepos.value.filter((r) => r !== repo)
-    : [...selectedRepos.value, repo];
-}
-
-function toggleAll(): void {
-  selectedRepos.value = allFilteredSelected.value
-    ? selectedRepos.value.filter((r) => !filteredRepos.value.includes(r))
-    : [...new Set([...selectedRepos.value, ...filteredRepos.value])];
 }
 
 onMounted(() => {
@@ -337,87 +313,15 @@ onMounted(() => {
 
         <!-- ── Step: Repo list ── -->
         <template v-else-if="step === 'repos'">
-          <div class="relative">
-            <Search
-              class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none"
-            />
-            <Input
-              v-model="search"
-              placeholder="Filter repositories…"
-              class="pl-7 h-8"
-            />
-          </div>
-
-          <div
-            v-if="availableRepos.length"
-            class="rounded-md border border-border overflow-hidden"
-          >
-            <button
-              class="flex w-full items-center gap-2.5 border-b border-border px-3 py-2 hover:bg-muted/40 transition-colors"
-              @click="toggleAll"
-            >
-              <span
-                class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
-                :class="allFilteredSelected ? 'border-primary bg-primary' : 'border-border'"
-              >
-                <svg
-                  v-if="allFilteredSelected"
-                  viewBox="0 0 10 10"
-                  class="h-2 w-2 text-primary-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </span>
-              <span class="font-mono text-[11px] text-muted-foreground">
-                {{ allFilteredSelected ? "Deselect all" : "Select all" }}
-              </span>
-            </button>
-
-            <div class="max-h-56 overflow-y-auto">
-              <button
-                v-for="repo in filteredRepos"
-                :key="repo"
-                class="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-muted/40 transition-colors border-b border-border last:border-0"
-                @click="toggleRepo(repo)"
-              >
-                <span
-                  class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
-                  :class="selectedRepos.includes(repo) ? 'border-primary bg-primary' : 'border-border'"
-                >
-                  <svg
-                    v-if="selectedRepos.includes(repo)"
-                    viewBox="0 0 10 10"
-                    class="h-2 w-2 text-primary-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </span>
-                <span class="font-mono text-[11px] text-foreground truncate">
-                  {{ repo }}
-                </span>
-              </button>
-
-              <div
-                v-if="filteredRepos.length === 0"
-                class="px-3 py-4 text-center font-mono text-[11px] text-muted-foreground"
-              >
-                No repositories match your filter.
-              </div>
-            </div>
-          </div>
-
-          <p
-            v-else
-            class="font-mono text-[11px] text-muted-foreground text-center py-4"
-          >
-            No repositories found for this token.
-          </p>
+          <RepoPickerList
+            v-model="search"
+            :repos="filteredRepos"
+            :available="availableRepos"
+            :selected="selectedRepos"
+            :all-selected="allFilteredSelected"
+            @toggle="toggleRepo"
+            @toggle-all="toggleAll"
+          />
 
           <p
             v-if="error"

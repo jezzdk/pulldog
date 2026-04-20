@@ -45,6 +45,7 @@ const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
 const oauth = useGithubOAuth();
+const isOAuth = computed(() => localStorage.getItem(TOKEN_SOURCE_KEY) === "oauth");
 
 // ── session state ─────────────────────────────────────────────────
 const connected = ref(false);
@@ -778,7 +779,7 @@ onMounted(async () => {
     <!-- Settings -->
     <SettingsDialog
       :open="showSettings"
-      :has-env-token="hasEnvToken"
+      :has-env-token="hasEnvToken || isOAuth"
       :current-token="token"
       :current-repos="repoList"
       :fetch-repos="fetchAvailableRepos"
