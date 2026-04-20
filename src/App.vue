@@ -45,7 +45,9 @@ const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
 const oauth = useGithubOAuth();
-const isOAuth = computed(() => localStorage.getItem(TOKEN_SOURCE_KEY) === "oauth");
+const isOAuth = computed(
+  () => localStorage.getItem(TOKEN_SOURCE_KEY) === "oauth",
+);
 
 // ── session state ─────────────────────────────────────────────────
 const connected = ref(false);
@@ -54,7 +56,6 @@ const setupError = ref("");
 const showSettings = ref(false);
 const showLogoutConfirm = ref(false);
 const lastUpdated = ref("");
-
 
 // ── data ──────────────────────────────────────────────────────────
 type RepoEntry = PullRequest[] | { error: string };
@@ -170,9 +171,8 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
 
 const totalOpen = computed(
   () =>
-    baseFilteredPRs.value.filter(
-      (p) => !p.draft && p.reviewStatus !== "merged",
-    ).length,
+    baseFilteredPRs.value.filter((p) => !p.draft && p.reviewStatus !== "merged")
+      .length,
 );
 const statOpen = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
@@ -334,7 +334,9 @@ const anyVisible = computed(() =>
 async function loadAll(isRefresh = false): Promise<void> {
   loading.value = true;
   const periodMs = STAT_PERIOD_MS[statPeriod.value];
-  const results = await Promise.allSettled(repoList.value.map((repo) => fetchRepo(repo, periodMs)));
+  const results = await Promise.allSettled(
+    repoList.value.map((repo) => fetchRepo(repo, periodMs)),
+  );
   let anyOk = false;
 
   for (let i = 0; i < results.length; i++) {
@@ -582,10 +584,12 @@ onUnmounted(() => {
 
 onMounted(async () => {
   const callbackToken = await oauth.handleCallback();
+
   if (callbackToken) {
     token.value = callbackToken;
     saveToken(callbackToken);
   }
+
   if (token.value && repoList.value.length) {
     void connect(repoList.value);
   }

@@ -112,7 +112,10 @@ export function useGithub(token: ComputedRef<string>) {
     return result;
   }
 
-  async function fetchRepo(repoFull: string, periodMs = 24 * 3_600_000): Promise<PullRequest[]> {
+  async function fetchRepo(
+    repoFull: string,
+    periodMs = 24 * 3_600_000,
+  ): Promise<PullRequest[]> {
     const [owner, repo] = repoFull.split("/");
     const cutoff = Date.now() - periodMs;
 

@@ -31,7 +31,10 @@ const emit = defineEmits<{
     />
   </div>
 
-  <div v-if="available.length" class="rounded-md border border-border overflow-hidden">
+  <div
+    v-if="available.length"
+    class="rounded-md border border-border overflow-hidden"
+  >
     <button
       class="flex w-full items-center gap-2.5 border-b border-border px-3 py-2 hover:bg-muted/40 transition-colors"
       @click="emit('toggleAll')"
@@ -48,7 +51,11 @@ const emit = defineEmits<{
           stroke="currentColor"
           stroke-width="2"
         >
-          <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
+          <path
+            d="M1.5 5l2.5 2.5 4.5-4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       </span>
       <span class="font-mono text-[11px] text-muted-foreground">
@@ -65,7 +72,11 @@ const emit = defineEmits<{
       >
         <span
           class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
-          :class="selected.includes(repo) ? 'border-primary bg-primary' : 'border-border'"
+          :class="
+            selected.includes(repo)
+              ? 'border-primary bg-primary'
+              : 'border-border'
+          "
         >
           <svg
             v-if="selected.includes(repo)"
@@ -75,10 +86,16 @@ const emit = defineEmits<{
             stroke="currentColor"
             stroke-width="2"
           >
-            <path d="M1.5 5l2.5 2.5 4.5-4" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M1.5 5l2.5 2.5 4.5-4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </span>
-        <span class="font-mono text-[11px] text-foreground truncate">{{ repo }}</span>
+        <span class="font-mono text-[11px] text-foreground truncate">{{
+          repo
+        }}</span>
       </button>
 
       <div
@@ -90,7 +107,10 @@ const emit = defineEmits<{
     </div>
   </div>
 
-  <p v-else class="font-mono text-[11px] text-muted-foreground text-center py-4">
+  <p
+    v-else
+    class="font-mono text-[11px] text-muted-foreground text-center py-4"
+  >
     No repositories found for this token.
   </p>
 </template>

@@ -58,8 +58,15 @@ const sortedPrs = computed<PullRequest[]>(() => {
   return [...props.prs].sort((a, b) => {
     const va = sortValue(a, sortKey.value);
     const vb = sortValue(b, sortKey.value);
-    if (va < vb) return -1 * dir;
-    if (va > vb) return 1 * dir;
+
+    if (va < vb) {
+      return -1 * dir;
+    }
+
+    if (va > vb) {
+      return 1 * dir;
+    }
+
     return 0;
   });
 });
@@ -172,8 +179,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 Repo
-                <ChevronUp v-if="sortKey === 'repo' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'repo' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'repo' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'repo' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>
@@ -183,8 +196,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 Author
-                <ChevronUp v-if="sortKey === 'author' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'author' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'author' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'author' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>
@@ -194,8 +213,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 Assignee
-                <ChevronUp v-if="sortKey === 'assignee' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'assignee' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'assignee' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'assignee' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>
@@ -205,8 +230,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 Reviewers
-                <ChevronUp v-if="sortKey === 'reviewers' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'reviewers' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'reviewers' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'reviewers' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>
@@ -216,8 +247,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 Comments
-                <ChevronUp v-if="sortKey === 'comments' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'comments' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'comments' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'comments' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>
@@ -227,8 +264,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 Age
-                <ChevronUp v-if="sortKey === 'age' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'age' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'age' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'age' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>
@@ -238,8 +281,14 @@ function openPR(url: string): void {
             >
               <span class="flex items-center gap-1">
                 SLA
-                <ChevronUp v-if="sortKey === 'sla' && sortDir === 'asc'" class="h-3 w-3" />
-                <ChevronDown v-else-if="sortKey === 'sla' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronUp
+                  v-if="sortKey === 'sla' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'sla' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
                 <ChevronUp v-else class="h-3 w-3 opacity-20" />
               </span>
             </th>

@@ -40,6 +40,7 @@ export function useRepoSelector(
   async function load(token?: string): Promise<void> {
     fetchState.value = "loading";
     fetchError.value = "";
+
     try {
       const repos = await fetchFn(token);
       availableRepos.value = repos;

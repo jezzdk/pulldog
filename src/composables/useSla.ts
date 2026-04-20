@@ -23,12 +23,3 @@ export function slaStatus(createdAt: Date): SlaStatus {
 
   return "ok";
 }
-
-/** CSS class object for Tailwind binding. */
-export function slaRowClass(createdAt: Date): Record<string, boolean> {
-  const s = slaStatus(createdAt);
-  return {
-    "row-sla-breach": s === "breach",
-    "row-sla-warning": s === "warning",
-  };
-}

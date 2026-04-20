@@ -118,7 +118,9 @@ const throughput = computed((): number | null => {
     return null;
   }
 
-  return Math.round(((props.mergedInPeriod ?? 0) / props.createdInPeriod!) * 100);
+  return Math.round(
+    ((props.mergedInPeriod ?? 0) / props.createdInPeriod!) * 100,
+  );
 });
 
 const throughputLabel = computed(() =>

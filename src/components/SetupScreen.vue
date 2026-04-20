@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Zap,
   Lock,
-  Search,
   AlertCircle,
   ChevronDown,
   Github,
@@ -24,7 +23,11 @@ const props = defineProps<{
   loading: boolean;
   error: string;
   clientId: string;
-  oauthState: { status: "idle" | "redirecting" | "exchanging" | "success" | "error"; message?: string; token?: string };
+  oauthState: {
+    status: "idle" | "redirecting" | "exchanging" | "success" | "error";
+    message?: string;
+    token?: string;
+  };
 }>();
 
 const emit = defineEmits<{
@@ -60,7 +63,10 @@ const {
 watch(
   () => props.oauthState,
   (s) => {
-    if (s.status === "error") showManualPat.value = true;
+    if (s.status === "error") {
+      showManualPat.value = true;
+    }
+
     if (s.status === "success" && s.token) {
       tokenInput.value = s.token;
       void doFetchRepos(s.token);
@@ -122,10 +128,11 @@ onMounted(() => {
       <div class="space-y-5">
         <!-- ── Step: Token input ── -->
         <template v-if="step === 'token'">
-
           <!-- OAuth: redirecting to GitHub -->
           <template v-if="oauthState.status === 'redirecting'">
-            <div class="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+            <div
+              class="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground"
+            >
               <RefreshCw class="h-5 w-5 animate-spin" />
               <span class="font-mono text-xs">Redirecting to GitHub…</span>
             </div>
@@ -133,7 +140,9 @@ onMounted(() => {
 
           <!-- OAuth: exchanging code for token (callback landed) -->
           <template v-else-if="oauthState.status === 'exchanging'">
-            <div class="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+            <div
+              class="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground"
+            >
               <RefreshCw class="h-5 w-5 animate-spin" />
               <span class="font-mono text-xs">Completing authorization…</span>
             </div>
@@ -141,8 +150,12 @@ onMounted(() => {
 
           <!-- OAuth: error -->
           <template v-else-if="oauthState.status === 'error'">
-            <div class="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2.5">
-              <AlertCircle class="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+            <div
+              class="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2.5"
+            >
+              <AlertCircle
+                class="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5"
+              />
               <p class="font-mono text-[11px] text-destructive">
                 {{ oauthState.message }}
               </p>
@@ -153,7 +166,9 @@ onMounted(() => {
             </Button>
             <div class="relative flex items-center gap-3">
               <div class="flex-1 border-t border-border" />
-              <span class="font-mono text-[10px] text-muted-foreground">or</span>
+              <span class="font-mono text-[10px] text-muted-foreground"
+                >or</span
+              >
               <div class="flex-1 border-t border-border" />
             </div>
           </template>
@@ -167,7 +182,9 @@ onMounted(() => {
 
             <div class="relative flex items-center gap-3">
               <div class="flex-1 border-t border-border" />
-              <span class="font-mono text-[10px] text-muted-foreground">or</span>
+              <span class="font-mono text-[10px] text-muted-foreground"
+                >or</span
+              >
               <div class="flex-1 border-t border-border" />
             </div>
 
@@ -209,7 +226,9 @@ onMounted(() => {
                   Fine-grained token (recommended)
                 </p>
                 <ol class="space-y-1.5 list-none">
-                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <li
+                    class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                  >
                     <span class="shrink-0 text-primary font-semibold">1.</span>
                     <span>
                       Open
@@ -217,34 +236,57 @@ onMounted(() => {
                         href="https://github.com/settings/personal-access-tokens/new"
                         target="_blank"
                         class="text-primary hover:underline"
-                        >github.com → Settings → Developer settings → Fine-grained tokens</a
+                        >github.com → Settings → Developer settings →
+                        Fine-grained tokens</a
                       >
                     </span>
                   </li>
-                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <li
+                    class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                  >
                     <span class="shrink-0 text-primary font-semibold">2.</span>
                     <span>Give the token a name and set an expiry date.</span>
                   </li>
-                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <li
+                    class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                  >
                     <span class="shrink-0 text-primary font-semibold">3.</span>
                     <span
                       >Under
-                      <em class="text-foreground/70 not-italic font-medium">Repository access</em>,
-                      select the repos you want to monitor.</span
+                      <em class="text-foreground/70 not-italic font-medium"
+                        >Repository access</em
+                      >, select the repos you want to monitor.</span
                     >
                   </li>
-                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <li
+                    class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                  >
                     <span class="shrink-0 text-primary font-semibold">4.</span>
                     <span>
                       Under
-                      <em class="text-foreground/70 not-italic font-medium">Permissions → Repository permissions</em>,
-                      set <em class="text-foreground/70 not-italic font-medium">Pull requests</em> to
-                      <span class="text-foreground/80 font-semibold">Read-only</span>.
+                      <em class="text-foreground/70 not-italic font-medium"
+                        >Permissions → Repository permissions</em
+                      >, set
+                      <em class="text-foreground/70 not-italic font-medium"
+                        >Pull requests</em
+                      >
+                      to
+                      <span class="text-foreground/80 font-semibold"
+                        >Read-only</span
+                      >.
                     </span>
                   </li>
-                  <li class="flex gap-2.5 font-mono text-[11px] text-muted-foreground">
+                  <li
+                    class="flex gap-2.5 font-mono text-[11px] text-muted-foreground"
+                  >
                     <span class="shrink-0 text-primary font-semibold">5.</span>
-                    <span>Click <em class="text-foreground/70 not-italic font-medium">Generate token</em> and paste it below.</span>
+                    <span
+                      >Click
+                      <em class="text-foreground/70 not-italic font-medium"
+                        >Generate token</em
+                      >
+                      and paste it below.</span
+                    >
                   </li>
                 </ol>
               </div>
@@ -263,8 +305,8 @@ onMounted(() => {
               <Lock class="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
               <p class="font-mono text-[10.5px] text-muted-foreground">
                 Everything stays in your browser. Your token and repo list are
-                never sent to any server — all GitHub API calls are made directly
-                from your machine.
+                never sent to any server — all GitHub API calls are made
+                directly from your machine.
               </p>
             </div>
 

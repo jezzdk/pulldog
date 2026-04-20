@@ -8,8 +8,6 @@ interface UseFullscreenReturn {
   isFullscreen: Ref<boolean>;
   isSupported: Ref<boolean>;
   toggle: () => Promise<void>;
-  enter: () => Promise<void>;
-  exit: () => Promise<void>;
 }
 
 export function useFullscreen(): UseFullscreenReturn {
@@ -67,5 +65,5 @@ export function useFullscreen(): UseFullscreenReturn {
     }
   }
 
-  return { isFullscreen, isSupported, toggle, enter, exit };
+  return { isFullscreen, isSupported, toggle };
 }

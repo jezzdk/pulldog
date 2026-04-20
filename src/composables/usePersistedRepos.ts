@@ -3,7 +3,10 @@ import { ref, watch, type Ref } from "vue";
 export const REPOS_KEY = "pulldog-repos";
 
 function parseRepos(text: string): string[] {
-  return text.split("\n").map((r) => r.trim()).filter(Boolean);
+  return text
+    .split("\n")
+    .map((r) => r.trim())
+    .filter(Boolean);
 }
 
 interface UsePersistedReposReturn {

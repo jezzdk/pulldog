@@ -29,36 +29,10 @@ export interface PullRequest {
   reviewStatus: ReviewStatus;
   commentCount: number;
   repo: string;
-  updatedAt: Date;
   mergedAt?: Date;
   reviewedAt?: Date;
   _flashClass: string;
   _slaRowCss: string;
-}
-
-export interface RepoData {
-  error?: string;
-}
-
-export interface ActivityMetrics {
-  createdInPeriod: number | null;
-  mergedInPeriod: number | null;
-  avgLeadTimeHours: number | null;
-  activityLoading: boolean;
-}
-
-export interface FilterState {
-  activeFilter: string;
-  staleOnly: boolean;
-  searchQ: string;
-  selectedRepos: string[];
-  selectedAuthors: string[];
-}
-
-export interface FilterGroup {
-  repo: string;
-  prs: PullRequest[];
-  error: string | null;
 }
 
 export interface Toast {
