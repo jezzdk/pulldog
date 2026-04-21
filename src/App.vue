@@ -31,6 +31,9 @@ const COMMENT_FIRE_THRESHOLD = Number(
   import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10,
 );
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
+const POLL_INTERVAL_S = Number(
+  import.meta.env.VITE_POLL_INTERVAL_S ?? 60,
+);
 
 const STAT_PERIOD_MS: Record<StatPeriod, number> = {
   "12h": 12 * 3_600_000,
@@ -647,7 +650,6 @@ function handleLogout(): void {
   connected.value = false;
 }
 
-const POLL_INTERVAL_S = 60;
 const pollCountdown = ref(POLL_INTERVAL_S);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let countdownTimer: ReturnType<typeof setInterval> | null = null;

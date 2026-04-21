@@ -18,7 +18,7 @@
 - **Sound alerts** — synthesised chime when a new PR is opened, gong when one is merged (Web Audio API, no audio files required)
 - **7-day summary bar** — total open PRs, PRs opened, PRs merged, average lead time, and merge rate
 - **Light / dark / system theme** — persisted to `localStorage`, respects OS preference in system mode
-- **Auto-refresh** — polls GitHub every 60 seconds; detects new and merged PRs and plays the appropriate sound
+- **Auto-refresh** — polls GitHub on a configurable interval (default 60 seconds); detects new and merged PRs and plays the appropriate sound
 - **Filters** — by status, SLA state, repo, author, staleness (7d+), or free-text search
 - **GitHub App OAuth** — one-click "Connect with GitHub" via a Cloudflare Worker; no token copy-pasting required
 
@@ -132,6 +132,9 @@ VITE_SLA_BREACH_HOURS=72
 
 # Show 🔥 next to comment count when it reaches this number
 VITE_COMMENT_FIRE_THRESHOLD=10
+
+# Poll interval in seconds (how often to refresh PRs, default: 60)
+VITE_POLL_INTERVAL_S=60
 ```
 
 For local development, override `VITE_GITHUB_WORKER_URL` to point at the local worker:
