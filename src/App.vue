@@ -438,8 +438,8 @@ async function loadAll(isRefresh = false): Promise<void> {
           const prevStatus = prev[p.id];
 
           if (prevStatus === undefined) {
-            // Brand-new PR — only notify for genuinely new open PRs
-            if (p.reviewStatus !== "merged") {
+            // Brand-new PR — only notify for genuinely new open (non-draft) PRs
+            if (p.reviewStatus !== "merged" && !p.draft) {
               shouldPlayDing = true;
               addToast(
                 "new",
@@ -727,6 +727,7 @@ onMounted(async () => {
       :sound-enabled="soundEnabled"
       :loading="loading"
       :last-updated="lastUpdated"
+      :poll-countdown="pollCountdown"
       :test-mode="TEST_MODE"
       :has-env-token="hasEnvToken"
       :on-test-new-pr="playNewPR"
@@ -827,7 +828,7 @@ onMounted(async () => {
     <footer
       class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground text-right"
     >
-      Pulldog · next refresh in {{ pollCountdown }}s
+      Pulldog · The faithful watchdog for your pull requests
     </footer>
 
     <!-- Toasts -->

@@ -23,6 +23,7 @@ defineProps<{
   soundEnabled: boolean;
   loading: boolean;
   lastUpdated: string;
+  pollCountdown: number;
   testMode: boolean;
   hasEnvToken: boolean;
   onTestNewPr: () => void;
@@ -84,7 +85,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
         @click="$emit('refresh')"
       >
         <RefreshCw class="h-3.5 w-3.5" :class="loading ? 'animate-spin' : ''" />
-        Refresh
+        Refresh ({{ pollCountdown }}s)
       </Button>
 
       <Button
