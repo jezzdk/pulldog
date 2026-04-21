@@ -117,13 +117,6 @@ function addToast(
 // ── audio / github ────────────────────────────────────────────────
 const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
 const tokenComputed = computed(() => token.value);
-const {
-  fetchRepo,
-  fetchRecentActivity,
-  fetchReviewStats,
-  fetchAvailableRepos,
-} = useGithub(tokenComputed);
-
 const compiledTitleFilter = computed<RegExp | null>(() => {
   if (!titleFilterRegex.value) return null;
   try {
@@ -132,6 +125,12 @@ const compiledTitleFilter = computed<RegExp | null>(() => {
     return null;
   }
 });
+const {
+  fetchRepo,
+  fetchRecentActivity,
+  fetchReviewStats,
+  fetchAvailableRepos,
+} = useGithub(tokenComputed, compiledTitleFilter);
 
 // ── computed stats ────────────────────────────────────────────────
 const allPRs = computed<PullRequest[]>(() =>
@@ -174,11 +173,7 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
         return [];
       }
 
-      let prs = entry as PullRequest[];
-      if (compiledTitleFilter.value) {
-        const re = compiledTitleFilter.value;
-        prs = prs.filter((p) => !re.test(p.title));
-      }
+      const prs = entry as PullRequest[];
       return selectedAuthors.value.length > 0
         ? prs.filter((p) => selectedAuthors.value.includes(p.author.login))
         : prs;
@@ -293,11 +288,6 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
       }
 
       let prs: PullRequest[] = [...entry];
-
-      if (compiledTitleFilter.value) {
-        const re = compiledTitleFilter.value;
-        prs = prs.filter((p) => !re.test(p.title));
-      }
 
       if (activeFilter.value === "sla-warn") {
         prs = prs.filter(

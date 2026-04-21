@@ -48,7 +48,10 @@ export interface ReviewStatsMetrics {
   mergedWithApprovalCount: number;
 }
 
-export function useGithub(token: ComputedRef<string>) {
+export function useGithub(
+  token: ComputedRef<string>,
+  titleFilter: ComputedRef<RegExp | null> = { value: null } as ComputedRef<RegExp | null>,
+) {
   async function gh<T>(path: string, overrideToken?: string): Promise<T> {
     const tok = overrideToken ?? token.value;
     const r = await fetch(`https://api.github.com${path}`, {
@@ -142,13 +145,16 @@ export function useGithub(token: ComputedRef<string>) {
       ),
     ]);
 
-    const relevant = [
+    let relevant = [
       ...openRaw,
       ...closedRaw.filter(
         (pr) =>
           pr.merged_at !== null && new Date(pr.merged_at).getTime() > cutoff,
       ),
     ];
+
+    const re = titleFilter.value;
+    if (re) relevant = relevant.filter((pr) => !re.test(pr.title));
 
     return Promise.all(
       relevant.map(async (pr): Promise<PullRequest> => {
@@ -298,13 +304,17 @@ export function useGithub(token: ComputedRef<string>) {
 
     const all = Object.values(byId);
 
+    const reActivity = titleFilter.value;
     const createdInPeriod = all.filter(
-      (pr) => new Date(pr.created_at).getTime() >= windowStart,
+      (pr) =>
+        new Date(pr.created_at).getTime() >= windowStart &&
+        (!reActivity || !reActivity.test(pr.title)),
     );
     const mergedInPeriod = all.filter(
       (pr) =>
         pr.merged_at !== null &&
-        new Date(pr.merged_at).getTime() >= windowStart,
+        new Date(pr.merged_at).getTime() >= windowStart &&
+        (!reActivity || !reActivity.test(pr.title)),
     );
 
     let avgLeadTimeHours: number | null = null;
@@ -346,10 +356,12 @@ export function useGithub(token: ComputedRef<string>) {
           ),
       },
     );
+    const reReview = titleFilter.value;
     const mergedRecently = closedRaw.filter(
       (pr) =>
         pr.merged_at !== null &&
-        new Date(pr.merged_at).getTime() >= windowStart,
+        new Date(pr.merged_at).getTime() >= windowStart &&
+        (!reReview || !reReview.test(pr.title)),
     );
 
     if (mergedRecently.length === 0) {
