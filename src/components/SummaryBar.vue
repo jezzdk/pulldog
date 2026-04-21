@@ -27,6 +27,8 @@ const props = withDefaults(
     avgLeadTimeHours: number | null;
     avgTimeToReviewHours: number | null;
     avgTimeToMergeHours: number | null;
+    authorPrCounts: { login: string; avatarUrl: string; count: number }[];
+    assigneePrCounts: { login: string; avatarUrl: string; count: number }[];
     loading: boolean;
     period: StatPeriod;
   }>(),
@@ -37,6 +39,8 @@ const props = withDefaults(
     avgLeadTimeHours: null,
     avgTimeToReviewHours: null,
     avgTimeToMergeHours: null,
+    authorPrCounts: () => [],
+    assigneePrCounts: () => [],
     loading: false,
     period: "7d",
   },
@@ -156,6 +160,18 @@ const throughputTooltip = computed(() => {
       : "New work is arriving faster than you are shipping — backlog is growing.";
   return `${props.mergedInPeriod} merged vs. ${props.createdInPeriod} opened ${periodLabel.value}. ${direction}`;
 });
+
+const maxAuthorCount = computed(() =>
+  props.authorPrCounts.reduce((m, a) => Math.max(m, a.count), 1),
+);
+
+const maxAssigneeCount = computed(() =>
+  props.assigneePrCounts.reduce((m, a) => Math.max(m, a.count), 1),
+);
+
+function barHeight(count: number, max: number): number {
+  return Math.max(2, Math.round((count / max) * 28));
+}
 </script>
 
 <template>
@@ -326,6 +342,64 @@ const throughputTooltip = computed(() => {
         {{ periodLabel }}
       </div>
     </div>
+
+    <!-- Author bar chart -->
+    <template v-if="authorPrCounts.length > 0">
+      <div class="h-10 w-px bg-border shrink-0 mr-8" />
+      <div class="py-4 pr-8 shrink-0">
+        <div class="flex items-end gap-1 h-12">
+          <Tooltip
+            v-for="a in authorPrCounts"
+            :key="a.login"
+            :text="`${a.login} · ${a.count} open PR${a.count !== 1 ? 's' : ''}`"
+            :delay="200"
+            side="top"
+          >
+            <div class="flex flex-col items-center gap-0.5 cursor-default">
+              <div
+                class="w-3.5 rounded-t-[2px] bg-foreground/20 hover:bg-primary/50 transition-colors"
+                :style="{ height: barHeight(a.count, maxAuthorCount) + 'px' }"
+              />
+              <img
+                :src="a.avatarUrl + '&s=24'"
+                :alt="a.login"
+                class="w-3.5 h-3.5 rounded-full shrink-0 object-cover"
+              />
+            </div>
+          </Tooltip>
+        </div>
+        <div class="font-mono text-[10px] text-muted-foreground mt-1.5">author top 5</div>
+      </div>
+    </template>
+
+    <!-- Assignee bar chart -->
+    <template v-if="assigneePrCounts.length > 0">
+      <div class="h-10 w-px bg-border shrink-0 mr-8" />
+      <div class="py-4 pr-8 shrink-0">
+        <div class="flex items-end gap-1 h-12">
+          <Tooltip
+            v-for="a in assigneePrCounts"
+            :key="a.login"
+            :text="`${a.login} · ${a.count} assigned PR${a.count !== 1 ? 's' : ''}`"
+            :delay="200"
+            side="top"
+          >
+            <div class="flex flex-col items-center gap-0.5 cursor-default">
+              <div
+                class="w-3.5 rounded-t-[2px] bg-foreground/20 hover:bg-primary/50 transition-colors"
+                :style="{ height: barHeight(a.count, maxAssigneeCount) + 'px' }"
+              />
+              <img
+                :src="a.avatarUrl + '&s=24'"
+                :alt="a.login"
+                class="w-3.5 h-3.5 rounded-full shrink-0 object-cover"
+              />
+            </div>
+          </Tooltip>
+        </div>
+        <div class="font-mono text-[10px] text-muted-foreground mt-1.5">assignee top 5</div>
+      </div>
+    </template>
 
     <!-- Period selector -->
     <div

@@ -185,6 +185,32 @@ const totalOpen = computed(
     baseFilteredPRs.value.filter((p) => !p.draft && p.reviewStatus !== "merged")
       .length,
 );
+
+const authorPrCounts = computed(() => {
+  const counts: Record<string, { login: string; avatarUrl: string; count: number }> = {};
+  for (const pr of baseFilteredPRs.value) {
+    if (!pr.draft && pr.reviewStatus !== "merged") {
+      const { login, avatar_url } = pr.author;
+      if (!counts[login]) counts[login] = { login, avatarUrl: avatar_url, count: 0 };
+      counts[login].count++;
+    }
+  }
+  return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+});
+
+const assigneePrCounts = computed(() => {
+  const counts: Record<string, { login: string; avatarUrl: string; count: number }> = {};
+  for (const pr of baseFilteredPRs.value) {
+    if (!pr.draft && pr.reviewStatus !== "merged") {
+      for (const { login, avatar_url } of pr.assignees) {
+        if (!counts[login]) counts[login] = { login, avatarUrl: avatar_url, count: 0 };
+        counts[login].count++;
+      }
+    }
+  }
+  return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+});
+
 const statOpen = computed(
   () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
 );
@@ -679,6 +705,8 @@ onMounted(async () => {
       :avg-lead-time-hours="filteredActivity.avgLeadTimeHours"
       :avg-time-to-review-hours="filteredActivity.avgTimeToReviewHours"
       :avg-time-to-merge-hours="filteredActivity.avgTimeToMergeHours"
+      :author-pr-counts="authorPrCounts"
+      :assignee-pr-counts="assigneePrCounts"
       :loading="activityLoading"
       v-model:period="statPeriod"
     />
