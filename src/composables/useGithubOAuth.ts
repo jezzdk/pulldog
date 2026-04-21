@@ -28,7 +28,6 @@ export function useGithubOAuth() {
       client_id: clientId,
       redirect_uri:
         import.meta.env.VITE_GITHUB_REDIRECT_URI || window.location.origin,
-      scope: "repo read:org",
       state: oauthState,
     });
 

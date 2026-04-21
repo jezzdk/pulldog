@@ -20,7 +20,7 @@
 - **Light / dark / system theme** — persisted to `localStorage`, respects OS preference in system mode
 - **Auto-refresh** — polls GitHub every 60 seconds; detects new and merged PRs and plays the appropriate sound
 - **Filters** — by status, SLA state, repo, author, staleness (7d+), or free-text search
-- **GitHub OAuth** — one-click "Connect with GitHub" via a Cloudflare Worker; no token copy-pasting required
+- **GitHub App OAuth** — one-click "Connect with GitHub" via a Cloudflare Worker; no token copy-pasting required
 
 ## Screenshots
 
@@ -33,20 +33,21 @@
 - [Node.js](https://nodejs.org/) v18 or later
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) for the auth worker (`npm i -g wrangler`)
 - A Cloudflare account (free tier is sufficient)
-- A GitHub OAuth App (see setup below)
+- A GitHub App (see setup below)
 
-## GitHub OAuth App setup
+## GitHub App setup
 
-You need **two** OAuth Apps — one for development, one for production — because each only supports a single callback URL.
+A single GitHub App works for both development and production — you can register multiple callback URLs.
 
-1. Go to **github.com → Settings → Developer settings → OAuth Apps → New OAuth App**
-2. Create the **development** app:
-   - Homepage URL: `http://localhost:5173`
-   - Authorization callback URL: `http://localhost:5173`
-3. Create the **production** app:
+1. Go to **github.com → Settings → Developer settings → GitHub Apps → New GitHub App**
+2. Set the following:
    - Homepage URL: `https://pulldog.dev` _(or your domain)_
-   - Authorization callback URL: `https://pulldog.dev`
-4. Note the **Client ID** and generate a **Client secret** for each app
+   - Callback URLs: `https://pulldog.dev` and `http://localhost:5173`
+   - Check **"Request user authorization (OAuth) during installation"**
+3. Under **Permissions → Repository permissions**, set:
+   - **Metadata**: Read-only _(required, auto-selected)_
+   - **Pull requests**: Read-only
+4. Note the **App ID** and **Client ID**, and generate a **Client secret**
 
 ## Cloudflare Worker setup
 
@@ -58,7 +59,7 @@ The worker handles the GitHub token exchange server-side so your client secret n
 # Authenticate with Cloudflare
 wrangler login
 
-# Set production secrets (uses the production OAuth App credentials)
+# Set production secrets (uses the GitHub App credentials)
 cd worker
 wrangler secret put GITHUB_CLIENT_ID
 wrangler secret put GITHUB_CLIENT_SECRET
@@ -72,7 +73,7 @@ This gives you a worker URL like `https://pulldog-auth.<your-subdomain>.workers.
 ### Run locally
 
 ```bash
-# Copy the example and fill in your dev OAuth App credentials
+# Copy the example and fill in your GitHub App credentials
 cp worker/.dev.vars.example worker/.dev.vars
 
 # Start the local worker (runs at http://localhost:8787)
@@ -91,11 +92,11 @@ npm install
 
 # 3. Configure environment variables
 cp .env.example .env
-# Edit .env and fill in VITE_GITHUB_CLIENT_ID and VITE_GITHUB_WORKER_URL
+# Edit .env and fill in VITE_GITHUB_CLIENT_ID (GitHub App client ID) and VITE_GITHUB_WORKER_URL
 
 # 4. Start the local worker in a separate terminal
 cp worker/.dev.vars.example worker/.dev.vars
-# Edit worker/.dev.vars with your dev OAuth App credentials
+# Edit worker/.dev.vars with your GitHub App credentials
 cd worker && wrangler dev
 
 # 5. Start the development server
@@ -111,7 +112,7 @@ Open [http://localhost:5173](http://localhost:5173) and click **Connect with Git
 Copy `.env.example` to get started:
 
 ```env
-# GitHub OAuth App Client ID (dev app for local, prod app for production)
+# GitHub App Client ID
 VITE_GITHUB_CLIENT_ID=your_client_id
 
 # URL of your deployed Cloudflare Worker
@@ -137,7 +138,7 @@ For local development, override `VITE_GITHUB_WORKER_URL` to point at the local w
 
 ```env
 # .env.local (git-ignored, overrides .env in dev)
-VITE_GITHUB_CLIENT_ID=your_dev_client_id
+VITE_GITHUB_CLIENT_ID=your_client_id
 VITE_GITHUB_WORKER_URL=http://localhost:8787
 ```
 
@@ -145,7 +146,7 @@ VITE_GITHUB_WORKER_URL=http://localhost:8787
 
 ### Worker — `worker/.dev.vars`
 
-Copy `worker/.dev.vars.example` and fill in your **dev** OAuth App credentials:
+Copy `worker/.dev.vars.example` and fill in your GitHub App credentials:
 
 ```env
 GITHUB_CLIENT_ID=your_dev_client_id
