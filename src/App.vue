@@ -338,6 +338,8 @@ async function loadAll(isRefresh = false): Promise<void> {
     repoList.value.map((repo) => fetchRepo(repo, periodMs)),
   );
   let anyOk = false;
+  let shouldPlayDing = false;
+  let shouldPlayGong = false;
 
   for (let i = 0; i < results.length; i++) {
     const repo = repoList.value[i]!;
@@ -356,7 +358,7 @@ async function loadAll(isRefresh = false): Promise<void> {
           if (prevStatus === undefined) {
             // Brand-new PR — only notify for genuinely new open PRs
             if (p.reviewStatus !== "merged") {
-              playNewPR();
+              shouldPlayDing = true;
               addToast(
                 "new",
                 "🔔",
@@ -371,7 +373,7 @@ async function loadAll(isRefresh = false): Promise<void> {
             }
           } else if (prevStatus !== "merged" && p.reviewStatus === "merged") {
             // PR transitioned to merged this poll — play gong
-            playMerged();
+            shouldPlayGong = true;
             addToast(
               "merged",
               "🎉",
@@ -391,6 +393,12 @@ async function loadAll(isRefresh = false): Promise<void> {
         r.reason instanceof Error ? r.reason.message : "Failed to load";
       prData.value[repo] = { error: msg };
     }
+  }
+
+  if (shouldPlayGong) {
+    playMerged();
+  } else if (shouldPlayDing) {
+    playNewPR();
   }
 
   if (!isRefresh && !anyOk) {
