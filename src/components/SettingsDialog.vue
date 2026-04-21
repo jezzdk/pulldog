@@ -107,23 +107,6 @@ function handleSave(): void {
         </p>
       </div>
 
-      <!-- PR Title Filter -->
-      <div class="space-y-1.5">
-        <Label>PR Title Filter</Label>
-        <Input
-          v-model="titleFilterInput"
-          type="text"
-          placeholder="e.g. ^WIP|dependabot"
-          :class="!titleFilterValid ? 'border-destructive' : ''"
-        />
-        <p v-if="!titleFilterValid" class="font-mono text-[10.5px] text-destructive">
-          Invalid regular expression.
-        </p>
-        <p v-else class="font-mono text-[10.5px] text-muted-foreground">
-          Regex — PRs with matching titles are hidden from the table and stats.
-        </p>
-      </div>
-
       <!-- Repositories -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
@@ -179,6 +162,23 @@ function handleSave(): void {
             @toggle-all="toggleAll"
           />
         </template>
+      </div>
+
+      <!-- PR Title Filter -->
+      <div class="space-y-1.5">
+        <Label>PR Title Filter</Label>
+        <Input
+          v-model="titleFilterInput"
+          type="text"
+          placeholder="e.g. ^WIP|dependabot"
+          :class="!titleFilterValid ? 'border-destructive' : ''"
+        />
+        <p v-if="!titleFilterValid" class="font-mono text-[10.5px] text-destructive">
+          Invalid regular expression.
+        </p>
+        <p v-else class="font-mono text-[10.5px] text-muted-foreground">
+          Regex — PRs with matching titles are hidden from the table and stats.
+        </p>
       </div>
 
       <div class="flex gap-2 pt-1">
