@@ -43,6 +43,9 @@ const STAT_PERIOD_MS: Record<StatPeriod, number> = {
 // ── persisted repos + token ───────────────────────────────────────
 const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
+
+const TITLE_FILTER_KEY = "pulldog-title-filter";
+const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
 const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
 const oauth = useGithubOAuth();
 const isOAuth = computed(
@@ -121,6 +124,15 @@ const {
   fetchAvailableRepos,
 } = useGithub(tokenComputed);
 
+const compiledTitleFilter = computed<RegExp | null>(() => {
+  if (!titleFilterRegex.value) return null;
+  try {
+    return new RegExp(titleFilterRegex.value, "i");
+  } catch {
+    return null;
+  }
+});
+
 // ── computed stats ────────────────────────────────────────────────
 const allPRs = computed<PullRequest[]>(() =>
   Object.values(prData.value)
@@ -162,7 +174,11 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
         return [];
       }
 
-      const prs = entry as PullRequest[];
+      let prs = entry as PullRequest[];
+      if (compiledTitleFilter.value) {
+        const re = compiledTitleFilter.value;
+        prs = prs.filter((p) => !re.test(p.title));
+      }
       return selectedAuthors.value.length > 0
         ? prs.filter((p) => selectedAuthors.value.includes(p.author.login))
         : prs;
@@ -277,6 +293,11 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
       }
 
       let prs: PullRequest[] = [...entry];
+
+      if (compiledTitleFilter.value) {
+        const re = compiledTitleFilter.value;
+        prs = prs.filter((p) => !re.test(p.title));
+      }
 
       if (activeFilter.value === "sla-warn") {
         prs = prs.filter(
@@ -502,12 +523,22 @@ async function refreshAll(): Promise<void> {
 async function handleSaveSettings(
   newRepos: string[],
   newToken?: string,
+  newTitleFilter?: string,
 ): Promise<void> {
   showSettings.value = false;
 
   if (newToken !== undefined) {
     token.value = newToken;
     saveToken(newToken);
+  }
+
+  if (newTitleFilter !== undefined) {
+    titleFilterRegex.value = newTitleFilter;
+    if (newTitleFilter) {
+      localStorage.setItem(TITLE_FILTER_KEY, newTitleFilter);
+    } else {
+      localStorage.removeItem(TITLE_FILTER_KEY);
+    }
   }
 
   saveList(newRepos);
@@ -786,6 +817,7 @@ onMounted(async () => {
       :has-env-token="hasEnvToken || isOAuth"
       :current-token="token"
       :current-repos="repoList"
+      :current-title-filter="titleFilterRegex"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"

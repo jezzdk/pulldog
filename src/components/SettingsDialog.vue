@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import Dialog from "@/components/ui/Dialog.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
@@ -13,15 +13,17 @@ const props = defineProps<{
   hasEnvToken: boolean;
   currentToken: string;
   currentRepos: string[];
+  currentTitleFilter: string;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  save: [repos: string[], token?: string];
+  save: [repos: string[], token?: string, titleFilter?: string];
 }>();
 
 const tokenInput = ref(props.currentToken);
+const titleFilterInput = ref(props.currentTitleFilter);
 
 const {
   search,
@@ -45,6 +47,7 @@ watch(
   (open) => {
     if (open) {
       tokenInput.value = props.currentToken;
+      titleFilterInput.value = props.currentTitleFilter;
       selectedRepos.value = [...props.currentRepos];
       search.value = "";
       loadRepos();
@@ -52,11 +55,22 @@ watch(
   },
 );
 
+const titleFilterValid = computed(() => {
+  if (!titleFilterInput.value) return true;
+  try {
+    new RegExp(titleFilterInput.value);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
 function handleSave(): void {
   emit(
     "save",
     selectedRepos.value,
     props.hasEnvToken ? undefined : tokenInput.value.trim(),
+    titleFilterInput.value,
   );
 }
 </script>
@@ -90,6 +104,23 @@ function handleSave(): void {
         </div>
         <p class="font-mono text-[10.5px] text-muted-foreground">
           Saved to localStorage — never sent to any server.
+        </p>
+      </div>
+
+      <!-- PR Title Filter -->
+      <div class="space-y-1.5">
+        <Label>PR Title Filter</Label>
+        <Input
+          v-model="titleFilterInput"
+          type="text"
+          placeholder="e.g. ^WIP|dependabot"
+          :class="!titleFilterValid ? 'border-destructive' : ''"
+        />
+        <p v-if="!titleFilterValid" class="font-mono text-[10.5px] text-destructive">
+          Invalid regular expression.
+        </p>
+        <p v-else class="font-mono text-[10.5px] text-muted-foreground">
+          Regex — PRs with matching titles are hidden from the table and stats.
         </p>
       </div>
 
@@ -156,7 +187,7 @@ function handleSave(): void {
         </Button>
         <Button
           class="flex-1"
-          :disabled="fetchState !== 'loaded' || selectedRepos.length === 0"
+          :disabled="fetchState !== 'loaded' || selectedRepos.length === 0 || !titleFilterValid"
           @click="handleSave"
         >
           Save &amp; Reload
