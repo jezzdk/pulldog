@@ -1,11 +1,12 @@
 // composables/useAudio.ts
 import { ref, type Ref } from "vue";
+import { useOpenAI } from "./useOpenAI";
 
 interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
   toggle: () => void;
   playNewPR: () => void;
-  playMerged: () => void;
+  playMerged: (authorName: string) => Promise<void>;
 }
 
 const STORAGE_KEY = "pulldog-sound";
@@ -85,15 +86,56 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
-  // ── Large Chinese gong ───────────────────────────────────────────
-  // Deep fundamental with characteristic "bloom" (the sound swells
-  // for ~80 ms after the strike), rich inharmonic partials, and a
-  // long 4-second decay.
-  function playMerged(): void {
+  // ── TTS merge announcement with gong ──────────────────────────
+  // Always plays gong immediately, then tries to play TTS
+  async function playMerged(authorName: string): Promise<void> {
     if (!soundEnabled.value) {
       return;
     }
 
+    // Play gong immediately
+    playGong();
+
+    // Try to play TTS on top (don't wait for it)
+    try {
+      const { textToSpeech } = useOpenAI();
+      const templates = [
+        `A PR by ${authorName} has been merged`,
+        `${authorName}'s PR is now merged`,
+        `PR from ${authorName} merged successfully`,
+        `${authorName} just got a PR merged`,
+        `Merged: a PR by ${authorName}`,
+        `${authorName}'s code made it to main`,
+      ];
+      const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+      const message =
+        templates[Math.floor(Math.random() * templates.length)]!;
+      const voice = voices[Math.floor(Math.random() * voices.length)]!;
+      const audioBuffer = await textToSpeech(message, voice);
+
+      const c = ctx();
+      c.decodeAudioData(
+        audioBuffer,
+        (decodedBuffer) => {
+          try {
+            const source = c.createBufferSource();
+            source.buffer = decodedBuffer;
+            source.connect(c.destination);
+            source.start(0);
+          } catch (_) {
+            /* TTS playback failed, gong already played */
+          }
+        },
+        () => {
+          /* TTS decode failed, gong already played */
+        },
+      );
+    } catch (_) {
+      /* TTS not available, gong already played */
+    }
+  }
+
+  function playGong(): void {
     try {
       const c = ctx(),
         t = c.currentTime;
@@ -120,16 +162,15 @@ export function useAudio(): UseAudioReturn {
       strike.start(t);
 
       // Gong partials — slightly inharmonic, all with bloom envelope.
-      // [freq, initialVol, bloomVol, bloomTime, decay]
       const partials: [number, number, number, number, number][] = [
-        [85, 0.05, 0.55, 0.08, 4.5], // fundamental
-        [172, 0.03, 0.28, 0.07, 4.0], // ~2nd (slightly flat)
-        [268, 0.02, 0.18, 0.06, 3.5], // ~3rd (inharmonic)
-        [365, 0.01, 0.12, 0.055, 3.0], // ~4th
-        [490, 0.01, 0.07, 0.05, 2.5], // ~6th
-        [640, 0.0, 0.04, 0.04, 2.0], // higher shimmer
-        [880, 0.0, 0.025, 0.03, 1.4], // bright shimmer
-        [1200, 0.0, 0.012, 0.025, 0.9], // top air
+        [85, 0.05, 0.55, 0.08, 4.5],
+        [172, 0.03, 0.28, 0.07, 4.0],
+        [268, 0.02, 0.18, 0.06, 3.5],
+        [365, 0.01, 0.12, 0.055, 3.0],
+        [490, 0.01, 0.07, 0.05, 2.5],
+        [640, 0.0, 0.04, 0.04, 2.0],
+        [880, 0.0, 0.025, 0.03, 1.4],
+        [1200, 0.0, 0.012, 0.025, 0.9],
       ];
 
       for (const [freq, initVol, peakVol, bloomTime, decay] of partials) {
@@ -137,7 +178,6 @@ export function useAudio(): UseAudioReturn {
         const gain = c.createGain();
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, t);
-        // Bloom: start quiet, swell to peak, then long exponential decay
         gain.gain.setValueAtTime(initVol, t);
         gain.gain.linearRampToValueAtTime(peakVol, t + bloomTime);
         gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
@@ -147,7 +187,7 @@ export function useAudio(): UseAudioReturn {
         osc.stop(t + decay + 0.1);
       }
     } catch (_) {
-      /* audio not available */
+      /* gong unavailable */
     }
   }
 
@@ -166,5 +206,5 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
-  return { soundEnabled, toggle, playNewPR, playMerged };
+  return { soundEnabled, toggle, playNewPR, playMerged } as UseAudioReturn;
 }

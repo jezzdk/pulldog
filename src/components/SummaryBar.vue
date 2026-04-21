@@ -368,7 +368,9 @@ function barHeight(count: number, max: number): number {
             </div>
           </Tooltip>
         </div>
-        <div class="font-mono text-[10px] text-muted-foreground mt-1.5">author top 5</div>
+        <div class="font-mono text-[10px] text-muted-foreground mt-1.5">
+          author top 5
+        </div>
       </div>
     </template>
 
@@ -397,7 +399,9 @@ function barHeight(count: number, max: number): number {
             </div>
           </Tooltip>
         </div>
-        <div class="font-mono text-[10px] text-muted-foreground mt-1.5">assignee top 5</div>
+        <div class="font-mono text-[10px] text-muted-foreground mt-1.5">
+          assignee top 5
+        </div>
       </div>
     </template>
 

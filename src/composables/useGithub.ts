@@ -50,7 +50,9 @@ export interface ReviewStatsMetrics {
 
 export function useGithub(
   token: ComputedRef<string>,
-  titleFilter: ComputedRef<RegExp | null> = { value: null } as ComputedRef<RegExp | null>,
+  titleFilter: ComputedRef<RegExp | null> = {
+    value: null,
+  } as ComputedRef<RegExp | null>,
 ) {
   async function gh<T>(path: string, overrideToken?: string): Promise<T> {
     const tok = overrideToken ?? token.value;
@@ -154,7 +156,10 @@ export function useGithub(
     ];
 
     const re = titleFilter.value;
-    if (re) relevant = relevant.filter((pr) => !re.test(pr.title));
+
+    if (re) {
+      relevant = relevant.filter((pr) => !re.test(pr.title));
+    }
 
     return Promise.all(
       relevant.map(async (pr): Promise<PullRequest> => {

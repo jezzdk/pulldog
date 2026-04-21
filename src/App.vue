@@ -116,9 +116,29 @@ function addToast(
 
 // ── audio / github ────────────────────────────────────────────────
 const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
+
+const testAuthors = [
+  "alice",
+  "bob",
+  "charlie",
+  "diana",
+  "eve",
+  "frank",
+  "grace",
+  "henry",
+];
+
+function playMergedTest(): void {
+  const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
+  void playMerged(author);
+}
+
 const tokenComputed = computed(() => token.value);
 const compiledTitleFilter = computed<RegExp | null>(() => {
-  if (!titleFilterRegex.value) return null;
+  if (!titleFilterRegex.value) {
+    return null;
+  }
+
   try {
     return new RegExp(titleFilterRegex.value, "i");
   } catch {
@@ -187,28 +207,49 @@ const totalOpen = computed(
 );
 
 const authorPrCounts = computed(() => {
-  const counts: Record<string, { login: string; avatarUrl: string; count: number }> = {};
+  const counts: Record<
+    string,
+    { login: string; avatarUrl: string; count: number }
+  > = {};
+
   for (const pr of baseFilteredPRs.value) {
     if (!pr.draft && pr.reviewStatus !== "merged") {
       const { login, avatar_url } = pr.author;
-      if (!counts[login]) counts[login] = { login, avatarUrl: avatar_url, count: 0 };
+
+      if (!counts[login]) {
+        counts[login] = { login, avatarUrl: avatar_url, count: 0 };
+      }
+
       counts[login].count++;
     }
   }
-  return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+
+  return Object.values(counts)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 });
 
 const assigneePrCounts = computed(() => {
-  const counts: Record<string, { login: string; avatarUrl: string; count: number }> = {};
+  const counts: Record<
+    string,
+    { login: string; avatarUrl: string; count: number }
+  > = {};
+
   for (const pr of baseFilteredPRs.value) {
     if (!pr.draft && pr.reviewStatus !== "merged") {
       for (const { login, avatar_url } of pr.assignees) {
-        if (!counts[login]) counts[login] = { login, avatarUrl: avatar_url, count: 0 };
+        if (!counts[login]) {
+          counts[login] = { login, avatarUrl: avatar_url, count: 0 };
+        }
+
         counts[login].count++;
       }
     }
   }
-  return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+
+  return Object.values(counts)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 });
 
 const statOpen = computed(
@@ -377,6 +418,7 @@ async function loadAll(isRefresh = false): Promise<void> {
   let anyOk = false;
   let shouldPlayDing = false;
   let shouldPlayGong = false;
+  let mergedAuthorName = "";
 
   for (let i = 0; i < results.length; i++) {
     const repo = repoList.value[i]!;
@@ -410,6 +452,10 @@ async function loadAll(isRefresh = false): Promise<void> {
             }
           } else if (prevStatus !== "merged" && p.reviewStatus === "merged") {
             // PR transitioned to merged this poll — play gong
+            if (!shouldPlayGong) {
+              mergedAuthorName = p.author.login;
+            }
+
             shouldPlayGong = true;
             addToast(
               "merged",
@@ -433,7 +479,7 @@ async function loadAll(isRefresh = false): Promise<void> {
   }
 
   if (shouldPlayGong) {
-    playMerged();
+    void playMerged(mergedAuthorName);
   } else if (shouldPlayDing) {
     playNewPR();
   }
@@ -558,6 +604,7 @@ async function handleSaveSettings(
 
   if (newTitleFilter !== undefined) {
     titleFilterRegex.value = newTitleFilter;
+
     if (newTitleFilter) {
       localStorage.setItem(TITLE_FILTER_KEY, newTitleFilter);
     } else {
@@ -681,7 +728,7 @@ onMounted(async () => {
       :test-mode="TEST_MODE"
       :has-env-token="hasEnvToken"
       :on-test-new-pr="playNewPR"
-      :on-test-merged="playMerged"
+      :on-test-merged="playMergedTest"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
       @open-settings="showSettings = true"

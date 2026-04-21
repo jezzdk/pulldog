@@ -56,7 +56,10 @@ watch(
 );
 
 const titleFilterValid = computed(() => {
-  if (!titleFilterInput.value) return true;
+  if (!titleFilterInput.value) {
+    return true;
+  }
+
   try {
     new RegExp(titleFilterInput.value);
     return true;
@@ -173,7 +176,10 @@ function handleSave(): void {
           placeholder="e.g. ^WIP|dependabot"
           :class="!titleFilterValid ? 'border-destructive' : ''"
         />
-        <p v-if="!titleFilterValid" class="font-mono text-[10.5px] text-destructive">
+        <p
+          v-if="!titleFilterValid"
+          class="font-mono text-[10.5px] text-destructive"
+        >
           Invalid regular expression.
         </p>
         <p v-else class="font-mono text-[10.5px] text-muted-foreground">
@@ -187,7 +193,11 @@ function handleSave(): void {
         </Button>
         <Button
           class="flex-1"
-          :disabled="fetchState !== 'loaded' || selectedRepos.length === 0 || !titleFilterValid"
+          :disabled="
+            fetchState !== 'loaded' ||
+            selectedRepos.length === 0 ||
+            !titleFilterValid
+          "
           @click="handleSave"
         >
           Save &amp; Reload
