@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
 import { RefreshCw } from "lucide-vue-next";
+import Switch from "@/components/ui/Switch.vue";
 
 type Option = { label: string; value: number };
 
@@ -40,6 +41,8 @@ const props = defineProps<{
   currentSlaWarningHours: number;
   currentSlaBreachHours: number;
   currentCommentFireThreshold: number;
+  currentHideDraftsInAll: boolean;
+  currentHideMergedInAll: boolean;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
@@ -52,6 +55,8 @@ const emit = defineEmits<{
     slaWarningHours?: number,
     slaBreachHours?: number,
     commentFireThreshold?: number,
+    hideDraftsInAll?: boolean,
+    hideMergedInAll?: boolean,
   ];
 }>();
 
@@ -61,6 +66,8 @@ const pollIntervalInput = ref(props.currentPollInterval);
 const slaWarningHoursInput = ref(props.currentSlaWarningHours);
 const slaBreachHoursInput = ref(props.currentSlaBreachHours);
 const commentFireThresholdInput = ref(String(props.currentCommentFireThreshold));
+const hideDraftsInAllInput = ref(props.currentHideDraftsInAll);
+const hideMergedInAllInput = ref(props.currentHideMergedInAll);
 
 watch(
   () => props.open,
@@ -72,6 +79,8 @@ watch(
       slaWarningHoursInput.value = props.currentSlaWarningHours;
       slaBreachHoursInput.value = props.currentSlaBreachHours;
       commentFireThresholdInput.value = String(props.currentCommentFireThreshold);
+      hideDraftsInAllInput.value = props.currentHideDraftsInAll;
+      hideMergedInAllInput.value = props.currentHideMergedInAll;
     }
   },
 );
@@ -105,6 +114,8 @@ function handleSave(): void {
     slaWarningHoursInput.value,
     slaBreachHoursInput.value,
     Number(commentFireThresholdInput.value),
+    hideDraftsInAllInput.value,
+    hideMergedInAllInput.value,
   );
 }
 </script>
@@ -199,6 +210,24 @@ function handleSave(): void {
         </div>
         <p class="font-mono text-[10.5px] text-muted-foreground">
           Saved to localStorage — never sent to any server.
+        </p>
+      </div>
+
+      <!-- All filter visibility -->
+      <div class="space-y-1.5">
+        <Label>PR List</Label>
+        <div class="flex gap-6">
+          <label class="flex cursor-pointer items-center gap-2">
+            <Switch v-model="hideDraftsInAllInput" />
+            <span class="font-mono text-xs text-foreground">Hide drafts</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <Switch v-model="hideMergedInAllInput" />
+            <span class="font-mono text-xs text-foreground">Hide merged</span>
+          </label>
+        </div>
+        <p class="font-mono text-[10.5px] text-muted-foreground">
+          Hide draft and/or merged PRs when the "All" filter is active.
         </p>
       </div>
 

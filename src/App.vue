@@ -55,6 +55,11 @@ const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 
 const TITLE_FILTER_KEY = "pulldog-title-filter";
 const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
+
+const HIDE_DRAFTS_IN_ALL_KEY = "pulldog-hide-drafts-in-all";
+const HIDE_MERGED_IN_ALL_KEY = "pulldog-hide-merged-in-all";
+const hideDraftsInAll = ref(localStorage.getItem(HIDE_DRAFTS_IN_ALL_KEY) === "true");
+const hideMergedInAll = ref(localStorage.getItem(HIDE_MERGED_IN_ALL_KEY) === "true");
 const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
 const oauth = useGithubOAuth();
 const isOAuth = computed(
@@ -386,9 +391,10 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
             p.reviewStatus === activeFilter.value && p.reviewStatus !== "draft",
         );
       } else {
-        // "all" hides drafts and merged by default
         prs = prs.filter(
-          (p) => p.reviewStatus !== "draft" && p.reviewStatus !== "merged",
+          (p) =>
+            (!hideDraftsInAll.value || p.reviewStatus !== "draft") &&
+            (!hideMergedInAll.value || p.reviewStatus !== "merged"),
         );
       }
 
@@ -607,6 +613,8 @@ function handleSaveSettings(
   newSlaWarningHours?: number,
   newSlaBreachHours?: number,
   newCommentFireThreshold?: number,
+  newHideDraftsInAll?: boolean,
+  newHideMergedInAll?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -644,6 +652,16 @@ function handleSaveSettings(
   if (newCommentFireThreshold !== undefined) {
     commentFireThreshold.value = newCommentFireThreshold;
     localStorage.setItem(COMMENT_FIRE_THRESHOLD_KEY, String(newCommentFireThreshold));
+  }
+
+  if (newHideDraftsInAll !== undefined) {
+    hideDraftsInAll.value = newHideDraftsInAll;
+    localStorage.setItem(HIDE_DRAFTS_IN_ALL_KEY, String(newHideDraftsInAll));
+  }
+
+  if (newHideMergedInAll !== undefined) {
+    hideMergedInAll.value = newHideMergedInAll;
+    localStorage.setItem(HIDE_MERGED_IN_ALL_KEY, String(newHideMergedInAll));
   }
 }
 
@@ -943,6 +961,8 @@ onMounted(async () => {
       :current-sla-warning-hours="slaWarningHours"
       :current-sla-breach-hours="slaBreachHours"
       :current-comment-fire-threshold="commentFireThreshold"
+      :current-hide-drafts-in-all="hideDraftsInAll"
+      :current-hide-merged-in-all="hideMergedInAll"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"
