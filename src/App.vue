@@ -3,7 +3,13 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useGithubOAuth, TOKEN_SOURCE_KEY } from "@/composables/useGithubOAuth";
 import { useAudio } from "@/composables/useAudio";
 import { useGithub } from "@/composables/useGithub";
-import { slaStatus, slaWarningHours, slaBreachHours, SLA_WARNING_KEY, SLA_BREACH_KEY } from "@/composables/useSla";
+import {
+  slaStatus,
+  slaWarningHours,
+  slaBreachHours,
+  SLA_WARNING_KEY,
+  SLA_BREACH_KEY,
+} from "@/composables/useSla";
 import type { StatPeriod } from "@/types";
 import { useTheme } from "@/composables/useTheme";
 import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
@@ -30,12 +36,14 @@ useTheme();
 // ── constants ─────────────────────────────────────────────────────
 const COMMENT_FIRE_THRESHOLD_KEY = "pulldog-comment-fire-threshold";
 const commentFireThreshold = ref(
-  Number(localStorage.getItem(COMMENT_FIRE_THRESHOLD_KEY) ?? import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10),
+  Number(
+    localStorage.getItem(COMMENT_FIRE_THRESHOLD_KEY) ??
+      import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ??
+      10,
+  ),
 );
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
-const ENV_POLL_INTERVAL_S = Number(
-  import.meta.env.VITE_POLL_INTERVAL_S ?? 60,
-);
+const ENV_POLL_INTERVAL_S = Number(import.meta.env.VITE_POLL_INTERVAL_S ?? 60);
 const POLL_INTERVAL_KEY = "pulldog-poll-interval";
 const pollIntervalS = ref(
   Number(localStorage.getItem(POLL_INTERVAL_KEY) ?? ENV_POLL_INTERVAL_S),
@@ -58,8 +66,12 @@ const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
 
 const HIDE_DRAFTS_IN_ALL_KEY = "pulldog-hide-drafts-in-all";
 const HIDE_MERGED_IN_ALL_KEY = "pulldog-hide-merged-in-all";
-const hideDraftsInAll = ref(localStorage.getItem(HIDE_DRAFTS_IN_ALL_KEY) === "true");
-const hideMergedInAll = ref(localStorage.getItem(HIDE_MERGED_IN_ALL_KEY) === "true");
+const hideDraftsInAll = ref(
+  localStorage.getItem(HIDE_DRAFTS_IN_ALL_KEY) === "true",
+);
+const hideMergedInAll = ref(
+  localStorage.getItem(HIDE_MERGED_IN_ALL_KEY) === "true",
+);
 const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
 const oauth = useGithubOAuth();
 const isOAuth = computed(
@@ -633,7 +645,10 @@ function handleSaveSettings(
     }
   }
 
-  if (newPollInterval !== undefined && newPollInterval !== pollIntervalS.value) {
+  if (
+    newPollInterval !== undefined &&
+    newPollInterval !== pollIntervalS.value
+  ) {
     pollIntervalS.value = newPollInterval;
     localStorage.setItem(POLL_INTERVAL_KEY, String(newPollInterval));
     startPolling();
@@ -651,7 +666,10 @@ function handleSaveSettings(
 
   if (newCommentFireThreshold !== undefined) {
     commentFireThreshold.value = newCommentFireThreshold;
-    localStorage.setItem(COMMENT_FIRE_THRESHOLD_KEY, String(newCommentFireThreshold));
+    localStorage.setItem(
+      COMMENT_FIRE_THRESHOLD_KEY,
+      String(newCommentFireThreshold),
+    );
   }
 
   if (newHideDraftsInAll !== undefined) {

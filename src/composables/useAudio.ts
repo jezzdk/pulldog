@@ -108,8 +108,7 @@ export function useAudio(): UseAudioReturn {
         `${authorName}'s code made it`,
       ];
       const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
-      const message =
-        templates[Math.floor(Math.random() * templates.length)]!;
+      const message = templates[Math.floor(Math.random() * templates.length)]!;
       const voice = voices[Math.floor(Math.random() * voices.length)]!;
       const audioBuffer = await textToSpeech(message, voice);
 

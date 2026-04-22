@@ -49,8 +49,14 @@ function sortValue(pr: PullRequest, key: SortKey): string | number {
     case "comments":
       return pr.commentCount;
     case "pr":
-      if (pr.reviewStatus === "merged") return pr.mergedAt?.getTime() ?? pr.createdAt.getTime();
-      if (pr.reviewStatus === "approved" || pr.reviewStatus === "changes") return pr.reviewedAt?.getTime() ?? pr.createdAt.getTime();
+      if (pr.reviewStatus === "merged") {
+        return pr.mergedAt?.getTime() ?? pr.createdAt.getTime();
+      }
+
+      if (pr.reviewStatus === "approved" || pr.reviewStatus === "changes") {
+        return pr.reviewedAt?.getTime() ?? pr.createdAt.getTime();
+      }
+
       return pr.createdAt.getTime();
     case "age":
     case "sla":

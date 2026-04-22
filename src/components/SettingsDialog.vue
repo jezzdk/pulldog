@@ -65,7 +65,9 @@ const titleFilterInput = ref(props.currentTitleFilter);
 const pollIntervalInput = ref(props.currentPollInterval);
 const slaWarningHoursInput = ref(props.currentSlaWarningHours);
 const slaBreachHoursInput = ref(props.currentSlaBreachHours);
-const commentFireThresholdInput = ref(String(props.currentCommentFireThreshold));
+const commentFireThresholdInput = ref(
+  String(props.currentCommentFireThreshold),
+);
 const hideDraftsInAllInput = ref(props.currentHideDraftsInAll);
 const hideMergedInAllInput = ref(props.currentHideMergedInAll);
 
@@ -78,7 +80,9 @@ watch(
       pollIntervalInput.value = props.currentPollInterval;
       slaWarningHoursInput.value = props.currentSlaWarningHours;
       slaBreachHoursInput.value = props.currentSlaBreachHours;
-      commentFireThresholdInput.value = String(props.currentCommentFireThreshold);
+      commentFireThresholdInput.value = String(
+        props.currentCommentFireThreshold,
+      );
       hideDraftsInAllInput.value = props.currentHideDraftsInAll;
       hideMergedInAllInput.value = props.currentHideMergedInAll;
     }
@@ -152,7 +156,11 @@ function handleSave(): void {
           v-model.number="slaWarningHoursInput"
           class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option v-for="opt in warningOptions" :key="opt.value" :value="opt.value">
+          <option
+            v-for="opt in warningOptions"
+            :key="opt.value"
+            :value="opt.value"
+          >
             {{ opt.label }}
           </option>
         </select>
@@ -167,7 +175,11 @@ function handleSave(): void {
           v-model.number="slaBreachHoursInput"
           class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option v-for="opt in breachOptions" :key="opt.value" :value="opt.value">
+          <option
+            v-for="opt in breachOptions"
+            :key="opt.value"
+            :value="opt.value"
+          >
             {{ opt.label }}
           </option>
         </select>
