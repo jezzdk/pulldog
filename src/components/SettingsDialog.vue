@@ -43,6 +43,8 @@ const props = defineProps<{
   currentCommentFireThreshold: number;
   currentHideDraftsInAll: boolean;
   currentHideMergedInAll: boolean;
+  currentConfettiEnabled: boolean;
+  currentTtsEnabled: boolean;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
@@ -57,6 +59,8 @@ const emit = defineEmits<{
     commentFireThreshold?: number,
     hideDraftsInAll?: boolean,
     hideMergedInAll?: boolean,
+    confettiEnabled?: boolean,
+    ttsEnabled?: boolean,
   ];
 }>();
 
@@ -70,6 +74,8 @@ const commentFireThresholdInput = ref(
 );
 const hideDraftsInAllInput = ref(props.currentHideDraftsInAll);
 const hideMergedInAllInput = ref(props.currentHideMergedInAll);
+const confettiEnabledInput = ref(props.currentConfettiEnabled);
+const ttsEnabledInput = ref(props.currentTtsEnabled);
 
 watch(
   () => props.open,
@@ -85,6 +91,8 @@ watch(
       );
       hideDraftsInAllInput.value = props.currentHideDraftsInAll;
       hideMergedInAllInput.value = props.currentHideMergedInAll;
+      confettiEnabledInput.value = props.currentConfettiEnabled;
+      ttsEnabledInput.value = props.currentTtsEnabled;
     }
   },
 );
@@ -120,6 +128,8 @@ function handleSave(): void {
     Number(commentFireThresholdInput.value),
     hideDraftsInAllInput.value,
     hideMergedInAllInput.value,
+    confettiEnabledInput.value,
+    ttsEnabledInput.value,
   );
 }
 </script>
@@ -240,6 +250,28 @@ function handleSave(): void {
         </div>
         <p class="font-mono text-[10.5px] text-muted-foreground">
           Hide draft and/or merged PRs when the "All" filter is active.
+        </p>
+      </div>
+
+      <!-- Notifications -->
+      <div class="space-y-1.5">
+        <Label>Notifications</Label>
+        <div class="flex flex-col gap-2">
+          <label class="flex cursor-pointer items-center gap-2">
+            <Switch v-model="confettiEnabledInput" />
+            <span class="font-mono text-xs text-foreground"
+              >Confetti on merge</span
+            >
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <Switch v-model="ttsEnabledInput" />
+            <span class="font-mono text-xs text-foreground"
+              >Voice announcement on merge</span
+            >
+          </label>
+        </div>
+        <p class="font-mono text-[10.5px] text-muted-foreground">
+          Voice announcements require sound to be enabled.
         </p>
       </div>
 

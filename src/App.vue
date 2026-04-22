@@ -12,6 +12,7 @@ import {
 } from "@/composables/useSla";
 import type { StatPeriod } from "@/types";
 import { useTheme } from "@/composables/useTheme";
+import { useConfetti } from "@/composables/useConfetti";
 import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
 import { usePersistedToken, TOKEN_KEY } from "@/composables/usePersistedToken";
 import type { PullRequest, ReviewStatus, Toast, FilteredGroup } from "@/types";
@@ -32,6 +33,8 @@ import { CheckCircle2, GitPullRequest, RefreshCw } from "lucide-vue-next";
 
 // ── theme (boot before render) ────────────────────────────────────
 useTheme();
+
+const { fireConfetti } = useConfetti();
 
 // ── constants ─────────────────────────────────────────────────────
 const COMMENT_FIRE_THRESHOLD_KEY = "pulldog-comment-fire-threshold";
@@ -66,11 +69,15 @@ const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
 
 const HIDE_DRAFTS_IN_ALL_KEY = "pulldog-hide-drafts-in-all";
 const HIDE_MERGED_IN_ALL_KEY = "pulldog-hide-merged-in-all";
+const CONFETTI_ENABLED_KEY = "pulldog-confetti-enabled";
 const hideDraftsInAll = ref(
   localStorage.getItem(HIDE_DRAFTS_IN_ALL_KEY) === "true",
 );
 const hideMergedInAll = ref(
   localStorage.getItem(HIDE_MERGED_IN_ALL_KEY) === "true",
+);
+const confettiEnabled = ref(
+  localStorage.getItem(CONFETTI_ENABLED_KEY) === "true",
 );
 const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID ?? "";
 const oauth = useGithubOAuth();
@@ -142,7 +149,13 @@ function addToast(
 }
 
 // ── audio / github ────────────────────────────────────────────────
-const { soundEnabled, toggle: toggleSound, playNewPR, playMerged } = useAudio();
+const {
+  soundEnabled,
+  ttsEnabled,
+  toggle: toggleSound,
+  playNewPR,
+  playMerged,
+} = useAudio();
 
 const testAuthors = [
   "alice",
@@ -158,6 +171,10 @@ const testAuthors = [
 function playMergedTest(): void {
   const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
   void playMerged(author);
+
+  if (confettiEnabled.value) {
+    fireConfetti();
+  }
 }
 
 const tokenComputed = computed(() => token.value);
@@ -508,6 +525,10 @@ async function loadAll(isRefresh = false): Promise<void> {
 
   if (shouldPlayGong) {
     void playMerged(mergedAuthorName);
+
+    if (confettiEnabled.value) {
+      fireConfetti();
+    }
   } else if (shouldPlayDing) {
     playNewPR();
   }
@@ -627,6 +648,8 @@ function handleSaveSettings(
   newCommentFireThreshold?: number,
   newHideDraftsInAll?: boolean,
   newHideMergedInAll?: boolean,
+  newConfettiEnabled?: boolean,
+  newTtsEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -680,6 +703,16 @@ function handleSaveSettings(
   if (newHideMergedInAll !== undefined) {
     hideMergedInAll.value = newHideMergedInAll;
     localStorage.setItem(HIDE_MERGED_IN_ALL_KEY, String(newHideMergedInAll));
+  }
+
+  if (newConfettiEnabled !== undefined) {
+    confettiEnabled.value = newConfettiEnabled;
+    localStorage.setItem(CONFETTI_ENABLED_KEY, String(newConfettiEnabled));
+  }
+
+  if (newTtsEnabled !== undefined) {
+    ttsEnabled.value = newTtsEnabled;
+    localStorage.setItem("pulldog-tts-enabled", String(newTtsEnabled));
   }
 }
 
@@ -795,6 +828,7 @@ onMounted(async () => {
       :stat-warn="statWarn"
       :stat-breach="statBreach"
       :sound-enabled="soundEnabled"
+      :confetti-enabled="confettiEnabled"
       :loading="loading"
       :last-updated="lastUpdated"
       :poll-countdown="pollCountdown"
@@ -981,6 +1015,8 @@ onMounted(async () => {
       :current-comment-fire-threshold="commentFireThreshold"
       :current-hide-drafts-in-all="hideDraftsInAll"
       :current-hide-merged-in-all="hideMergedInAll"
+      :current-confetti-enabled="confettiEnabled"
+      :current-tts-enabled="ttsEnabled"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"

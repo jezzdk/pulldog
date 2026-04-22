@@ -4,15 +4,19 @@ import { useOpenAI } from "./useOpenAI";
 
 interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
+  ttsEnabled: Ref<boolean>;
   toggle: () => void;
+  toggleTts: () => void;
   playNewPR: () => void;
   playMerged: (authorName: string) => Promise<void>;
 }
 
 const STORAGE_KEY = "pulldog-sound";
+const TTS_STORAGE_KEY = "pulldog-tts-enabled";
 
 export function useAudio(): UseAudioReturn {
   const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
+  const ttsEnabled = ref(localStorage.getItem(TTS_STORAGE_KEY) === "true");
   let audioCtx: AudioContext | null = null;
 
   function ctx(): AudioContext {
@@ -97,6 +101,10 @@ export function useAudio(): UseAudioReturn {
     playGong();
 
     // Try to play TTS on top (don't wait for it)
+    if (!ttsEnabled.value) {
+      return;
+    }
+
     try {
       const { textToSpeech } = useOpenAI();
       const templates = [
@@ -190,6 +198,11 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
+  function toggleTts(): void {
+    ttsEnabled.value = !ttsEnabled.value;
+    localStorage.setItem(TTS_STORAGE_KEY, String(ttsEnabled.value));
+  }
+
   function toggle(): void {
     soundEnabled.value = !soundEnabled.value;
     localStorage.setItem(STORAGE_KEY, String(soundEnabled.value));
@@ -205,5 +218,12 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
-  return { soundEnabled, toggle, playNewPR, playMerged } as UseAudioReturn;
+  return {
+    soundEnabled,
+    ttsEnabled,
+    toggle,
+    toggleTts,
+    playNewPR,
+    playMerged,
+  } as UseAudioReturn;
 }

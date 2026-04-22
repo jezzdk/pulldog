@@ -22,6 +22,7 @@ defineProps<{
   statWarn: number;
   statBreach: number;
   soundEnabled: boolean;
+  confettiEnabled: boolean;
   loading: boolean;
   lastUpdated: string;
   pollCountdown: number;
@@ -169,7 +170,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       variant="outline"
       size="sm"
       class="h-6 px-2 font-mono text-[10px]"
-      :disabled="!soundEnabled"
+      :disabled="!soundEnabled && !confettiEnabled"
       @click="onTestMerged()"
     >
       🎉 merge
