@@ -105,7 +105,7 @@ export function useAudio(): UseAudioReturn {
         `PR from ${authorName} merged successfully`,
         `${authorName} just got a PR merged`,
         `Merged: a PR by ${authorName}`,
-        `${authorName}'s code made it to main`,
+        `${authorName}'s code made it`,
       ];
       const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
       const message =

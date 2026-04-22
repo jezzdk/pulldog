@@ -15,6 +15,7 @@ import Topbar from "@/components/Topbar.vue";
 import FilterBar from "@/components/FilterBar.vue";
 import PrTable from "@/components/PrTable.vue";
 import SettingsDialog from "@/components/SettingsDialog.vue";
+import RepoDialog from "@/components/RepoDialog.vue";
 import SummaryBar from "@/components/SummaryBar.vue";
 import SlaLegend from "@/components/SlaLegend.vue";
 import Badge from "@/components/ui/Badge.vue";
@@ -60,6 +61,7 @@ const connected = ref(false);
 const loading = ref(false);
 const setupError = ref("");
 const showSettings = ref(false);
+const showRepos = ref(false);
 const showLogoutConfirm = ref(false);
 const lastUpdated = ref("");
 
@@ -593,11 +595,7 @@ async function refreshAll(): Promise<void> {
   }
 }
 
-async function handleSaveSettings(
-  newRepos: string[],
-  newToken?: string,
-  newTitleFilter?: string,
-): Promise<void> {
+function handleSaveSettings(newToken?: string, newTitleFilter?: string): void {
   showSettings.value = false;
 
   if (newToken !== undefined) {
@@ -614,7 +612,10 @@ async function handleSaveSettings(
       localStorage.removeItem(TITLE_FILTER_KEY);
     }
   }
+}
 
+async function handleSaveRepos(newRepos: string[]): Promise<void> {
+  showRepos.value = false;
   saveList(newRepos);
   prData.value = {};
   knownStatuses.value = {};
@@ -734,6 +735,7 @@ onMounted(async () => {
       :on-test-merged="playMergedTest"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
+      @open-repos="showRepos = true"
       @open-settings="showSettings = true"
       @logout="showLogoutConfirm = true"
     />
@@ -887,12 +889,22 @@ onMounted(async () => {
       </div>
     </Dialog>
 
+    <!-- Repositories -->
+    <RepoDialog
+      :open="showRepos"
+      :has-env-token="hasEnvToken || isOAuth"
+      :current-token="token"
+      :current-repos="repoList"
+      :fetch-repos="fetchAvailableRepos"
+      @close="showRepos = false"
+      @save="handleSaveRepos"
+    />
+
     <!-- Settings -->
     <SettingsDialog
       :open="showSettings"
       :has-env-token="hasEnvToken || isOAuth"
       :current-token="token"
-      :current-repos="repoList"
       :current-title-filter="titleFilterRegex"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"

@@ -7,6 +7,7 @@ import { useFullscreen } from "@/composables/useFullscreen";
 import {
   RefreshCw,
   Settings,
+  GitBranch,
   Volume2,
   VolumeX,
   Zap,
@@ -33,6 +34,7 @@ defineProps<{
 defineEmits<{
   refresh: [];
   toggleSound: [];
+  openRepos: [];
   openSettings: [];
   logout: [];
 }>();
@@ -118,6 +120,12 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
         <Button variant="ghost" size="icon" @click="toggleFullscreen">
           <Minimize2 v-if="isFullscreen" class="h-4 w-4" />
           <Maximize2 v-else class="h-4 w-4" />
+        </Button>
+      </Tooltip>
+
+      <Tooltip text="Repositories" side="bottom">
+        <Button variant="ghost" size="icon" @click="$emit('openRepos')">
+          <GitBranch class="h-4 w-4" />
         </Button>
       </Tooltip>
 
