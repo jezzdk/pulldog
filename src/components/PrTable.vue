@@ -14,6 +14,7 @@ const props = defineProps<{
 }>();
 
 type SortKey =
+  | "pr"
   | "repo"
   | "author"
   | "assignee"
@@ -47,6 +48,10 @@ function sortValue(pr: PullRequest, key: SortKey): string | number {
       return pr.requestedReviewers.length;
     case "comments":
       return pr.commentCount;
+    case "pr":
+      if (pr.reviewStatus === "merged") return pr.mergedAt?.getTime() ?? pr.createdAt.getTime();
+      if (pr.reviewStatus === "approved" || pr.reviewStatus === "changes") return pr.reviewedAt?.getTime() ?? pr.createdAt.getTime();
+      return pr.createdAt.getTime();
     case "age":
     case "sla":
       return pr.createdAt.getTime();
@@ -168,9 +173,21 @@ function openPR(url: string): void {
               Status
             </th>
             <th
-              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2"
+              class="text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 cursor-pointer select-none hover:text-foreground transition-colors"
+              @click="toggleSort('pr')"
             >
-              Pull Request
+              <span class="flex items-center gap-1">
+                Pull Request
+                <ChevronUp
+                  v-if="sortKey === 'pr' && sortDir === 'asc'"
+                  class="h-3 w-3"
+                />
+                <ChevronDown
+                  v-else-if="sortKey === 'pr' && sortDir === 'desc'"
+                  class="h-3 w-3"
+                />
+                <ChevronUp v-else class="h-3 w-3 opacity-20" />
+              </span>
             </th>
             <th
               v-if="showRepo"
