@@ -6,21 +6,34 @@ import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
 import { RefreshCw } from "lucide-vue-next";
 
+const POLL_INTERVAL_OPTIONS: { label: string; value: number }[] = [
+  { label: "15 seconds", value: 15 },
+  { label: "30 seconds", value: 30 },
+  { label: "1 minute", value: 60 },
+  { label: "2 minutes", value: 120 },
+  { label: "5 minutes", value: 300 },
+  { label: "10 minutes", value: 600 },
+  { label: "15 minutes", value: 900 },
+  { label: "30 minutes", value: 1800 },
+];
+
 const props = defineProps<{
   open: boolean;
   hasEnvToken: boolean;
   currentToken: string;
   currentTitleFilter: string;
+  currentPollInterval: number;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  save: [token?: string, titleFilter?: string];
+  save: [token?: string, titleFilter?: string, pollInterval?: number];
 }>();
 
 const tokenInput = ref(props.currentToken);
 const titleFilterInput = ref(props.currentTitleFilter);
+const pollIntervalInput = ref(props.currentPollInterval);
 
 watch(
   () => props.open,
@@ -28,6 +41,7 @@ watch(
     if (open) {
       tokenInput.value = props.currentToken;
       titleFilterInput.value = props.currentTitleFilter;
+      pollIntervalInput.value = props.currentPollInterval;
     }
   },
 );
@@ -50,6 +64,7 @@ function handleSave(): void {
     "save",
     props.hasEnvToken ? undefined : tokenInput.value.trim(),
     titleFilterInput.value,
+    pollIntervalInput.value,
   );
 }
 </script>
@@ -58,6 +73,26 @@ function handleSave(): void {
   <Dialog :open="open" @close="$emit('close')">
     <div class="space-y-4">
       <h2 class="font-mono text-sm font-semibold text-foreground">Settings</h2>
+
+      <!-- Poll Interval -->
+      <div class="space-y-1.5">
+        <Label>Poll Interval</Label>
+        <select
+          v-model.number="pollIntervalInput"
+          class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option
+            v-for="opt in POLL_INTERVAL_OPTIONS"
+            :key="opt.value"
+            :value="opt.value"
+          >
+            {{ opt.label }}
+          </option>
+        </select>
+        <p class="font-mono text-[10.5px] text-muted-foreground">
+          How often to refresh pull requests.
+        </p>
+      </div>
 
       <!-- Token (only when not sourced from .env) -->
       <div v-if="!hasEnvToken" class="space-y-1.5">

@@ -32,8 +32,12 @@ const COMMENT_FIRE_THRESHOLD = Number(
   import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10,
 );
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
-const POLL_INTERVAL_S = Number(
+const ENV_POLL_INTERVAL_S = Number(
   import.meta.env.VITE_POLL_INTERVAL_S ?? 60,
+);
+const POLL_INTERVAL_KEY = "pulldog-poll-interval";
+const pollIntervalS = ref(
+  Number(localStorage.getItem(POLL_INTERVAL_KEY) ?? ENV_POLL_INTERVAL_S),
 );
 
 const STAT_PERIOD_MS: Record<StatPeriod, number> = {
@@ -595,7 +599,7 @@ async function refreshAll(): Promise<void> {
   }
 }
 
-function handleSaveSettings(newToken?: string, newTitleFilter?: string): void {
+function handleSaveSettings(newToken?: string, newTitleFilter?: string, newPollInterval?: number): void {
   showSettings.value = false;
 
   if (newToken !== undefined) {
@@ -611,6 +615,12 @@ function handleSaveSettings(newToken?: string, newTitleFilter?: string): void {
     } else {
       localStorage.removeItem(TITLE_FILTER_KEY);
     }
+  }
+
+  if (newPollInterval !== undefined && newPollInterval !== pollIntervalS.value) {
+    pollIntervalS.value = newPollInterval;
+    localStorage.setItem(POLL_INTERVAL_KEY, String(newPollInterval));
+    startPolling();
   }
 }
 
@@ -651,7 +661,7 @@ function handleLogout(): void {
   connected.value = false;
 }
 
-const pollCountdown = ref(POLL_INTERVAL_S);
+const pollCountdown = ref(pollIntervalS.value);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -664,13 +674,13 @@ function startPolling(): void {
     clearInterval(countdownTimer);
   }
 
-  pollCountdown.value = POLL_INTERVAL_S;
+  pollCountdown.value = pollIntervalS.value;
 
   pollTimer = setInterval(() => {
-    pollCountdown.value = POLL_INTERVAL_S;
+    pollCountdown.value = pollIntervalS.value;
     void loadAll(true);
     void loadActivity();
-  }, POLL_INTERVAL_S * 1_000);
+  }, pollIntervalS.value * 1_000);
 
   countdownTimer = setInterval(() => {
     pollCountdown.value = Math.max(0, pollCountdown.value - 1);
@@ -906,6 +916,7 @@ onMounted(async () => {
       :has-env-token="hasEnvToken || isOAuth"
       :current-token="token"
       :current-title-filter="titleFilterRegex"
+      :current-poll-interval="pollIntervalS"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"
