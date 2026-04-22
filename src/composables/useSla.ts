@@ -1,23 +1,36 @@
-// composables/useSla.ts
+import { ref } from "vue";
 import type { SlaStatus } from "@/types";
 
-const WARNING_HOURS = Number(import.meta.env.VITE_SLA_WARNING_HOURS ?? 24);
-const BREACH_HOURS = Number(import.meta.env.VITE_SLA_BREACH_HOURS ?? 72);
+export const SLA_WARNING_KEY = "pulldog-sla-warning-hours";
+export const SLA_BREACH_KEY = "pulldog-sla-breach-hours";
+
+const ENV_WARNING_HOURS = Number(import.meta.env.VITE_SLA_WARNING_HOURS ?? 24);
+const ENV_BREACH_HOURS = Number(import.meta.env.VITE_SLA_BREACH_HOURS ?? 72);
+
+export const slaWarningHours = ref(
+  Number(localStorage.getItem(SLA_WARNING_KEY) ?? ENV_WARNING_HOURS),
+);
+export const slaBreachHours = ref(
+  Number(localStorage.getItem(SLA_BREACH_KEY) ?? ENV_BREACH_HOURS),
+);
 
 export const SLA = {
-  warningHours: WARNING_HOURS,
-  breachHours: BREACH_HOURS,
-} as const;
+  get warningHours() {
+    return slaWarningHours.value;
+  },
+  get breachHours() {
+    return slaBreachHours.value;
+  },
+};
 
-/** Returns 'breach' | 'warning' | 'ok' for a given PR creation date. */
 export function slaStatus(createdAt: Date): SlaStatus {
   const hours = (Date.now() - createdAt.getTime()) / 3_600_000;
 
-  if (hours >= BREACH_HOURS) {
+  if (hours >= slaBreachHours.value) {
     return "breach";
   }
 
-  if (hours >= WARNING_HOURS) {
+  if (hours >= slaWarningHours.value) {
     return "warning";
   }
 

@@ -6,7 +6,9 @@ import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
 import { RefreshCw } from "lucide-vue-next";
 
-const POLL_INTERVAL_OPTIONS: { label: string; value: number }[] = [
+type Option = { label: string; value: number };
+
+const POLL_INTERVAL_OPTIONS: Option[] = [
   { label: "15 seconds", value: 15 },
   { label: "30 seconds", value: 30 },
   { label: "1 minute", value: 60 },
@@ -17,23 +19,48 @@ const POLL_INTERVAL_OPTIONS: { label: string; value: number }[] = [
   { label: "30 minutes", value: 1800 },
 ];
 
+const SLA_HOUR_OPTIONS: Option[] = [
+  { label: "4 hours", value: 4 },
+  { label: "8 hours", value: 8 },
+  { label: "12 hours", value: 12 },
+  { label: "24 hours", value: 24 },
+  { label: "48 hours", value: 48 },
+  { label: "72 hours", value: 72 },
+  { label: "96 hours", value: 96 },
+  { label: "120 hours", value: 120 },
+  { label: "168 hours (1 week)", value: 168 },
+];
+
 const props = defineProps<{
   open: boolean;
   hasEnvToken: boolean;
   currentToken: string;
   currentTitleFilter: string;
   currentPollInterval: number;
+  currentSlaWarningHours: number;
+  currentSlaBreachHours: number;
+  currentCommentFireThreshold: number;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  save: [token?: string, titleFilter?: string, pollInterval?: number];
+  save: [
+    token?: string,
+    titleFilter?: string,
+    pollInterval?: number,
+    slaWarningHours?: number,
+    slaBreachHours?: number,
+    commentFireThreshold?: number,
+  ];
 }>();
 
 const tokenInput = ref(props.currentToken);
 const titleFilterInput = ref(props.currentTitleFilter);
 const pollIntervalInput = ref(props.currentPollInterval);
+const slaWarningHoursInput = ref(props.currentSlaWarningHours);
+const slaBreachHoursInput = ref(props.currentSlaBreachHours);
+const commentFireThresholdInput = ref(String(props.currentCommentFireThreshold));
 
 watch(
   () => props.open,
@@ -42,8 +69,18 @@ watch(
       tokenInput.value = props.currentToken;
       titleFilterInput.value = props.currentTitleFilter;
       pollIntervalInput.value = props.currentPollInterval;
+      slaWarningHoursInput.value = props.currentSlaWarningHours;
+      slaBreachHoursInput.value = props.currentSlaBreachHours;
+      commentFireThresholdInput.value = String(props.currentCommentFireThreshold);
     }
   },
+);
+
+const warningOptions = computed(() =>
+  SLA_HOUR_OPTIONS.filter((o) => o.value < slaBreachHoursInput.value),
+);
+const breachOptions = computed(() =>
+  SLA_HOUR_OPTIONS.filter((o) => o.value > slaWarningHoursInput.value),
 );
 
 const titleFilterValid = computed(() => {
@@ -65,6 +102,9 @@ function handleSave(): void {
     props.hasEnvToken ? undefined : tokenInput.value.trim(),
     titleFilterInput.value,
     pollIntervalInput.value,
+    slaWarningHoursInput.value,
+    slaBreachHoursInput.value,
+    Number(commentFireThresholdInput.value),
   );
 }
 </script>
@@ -91,6 +131,51 @@ function handleSave(): void {
         </select>
         <p class="font-mono text-[10.5px] text-muted-foreground">
           How often to refresh pull requests.
+        </p>
+      </div>
+
+      <!-- SLA thresholds -->
+      <div class="space-y-1.5">
+        <Label>SLA Warning</Label>
+        <select
+          v-model.number="slaWarningHoursInput"
+          class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option v-for="opt in warningOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+        <p class="font-mono text-[10.5px] text-muted-foreground">
+          PRs open longer than this are flagged as warning.
+        </p>
+      </div>
+
+      <div class="space-y-1.5">
+        <Label>SLA Breach</Label>
+        <select
+          v-model.number="slaBreachHoursInput"
+          class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option v-for="opt in breachOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+        <p class="font-mono text-[10.5px] text-muted-foreground">
+          PRs open longer than this are flagged as breach.
+        </p>
+      </div>
+
+      <!-- Comment fire threshold -->
+      <div class="space-y-1.5">
+        <Label>Comment Fire Threshold</Label>
+        <Input
+          v-model="commentFireThresholdInput"
+          type="number"
+          min="1"
+          placeholder="10"
+        />
+        <p class="font-mono text-[10.5px] text-muted-foreground">
+          PRs with at least this many comments show a fire indicator.
         </p>
       </div>
 

@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useGithubOAuth, TOKEN_SOURCE_KEY } from "@/composables/useGithubOAuth";
 import { useAudio } from "@/composables/useAudio";
 import { useGithub } from "@/composables/useGithub";
-import { slaStatus } from "@/composables/useSla";
+import { slaStatus, slaWarningHours, slaBreachHours, SLA_WARNING_KEY, SLA_BREACH_KEY } from "@/composables/useSla";
 import type { StatPeriod } from "@/types";
 import { useTheme } from "@/composables/useTheme";
 import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
@@ -28,8 +28,9 @@ import { CheckCircle2, GitPullRequest, RefreshCw } from "lucide-vue-next";
 useTheme();
 
 // ── constants ─────────────────────────────────────────────────────
-const COMMENT_FIRE_THRESHOLD = Number(
-  import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10,
+const COMMENT_FIRE_THRESHOLD_KEY = "pulldog-comment-fire-threshold";
+const commentFireThreshold = ref(
+  Number(localStorage.getItem(COMMENT_FIRE_THRESHOLD_KEY) ?? import.meta.env.VITE_COMMENT_FIRE_THRESHOLD ?? 10),
 );
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === "true";
 const ENV_POLL_INTERVAL_S = Number(
@@ -599,7 +600,14 @@ async function refreshAll(): Promise<void> {
   }
 }
 
-function handleSaveSettings(newToken?: string, newTitleFilter?: string, newPollInterval?: number): void {
+function handleSaveSettings(
+  newToken?: string,
+  newTitleFilter?: string,
+  newPollInterval?: number,
+  newSlaWarningHours?: number,
+  newSlaBreachHours?: number,
+  newCommentFireThreshold?: number,
+): void {
   showSettings.value = false;
 
   if (newToken !== undefined) {
@@ -621,6 +629,21 @@ function handleSaveSettings(newToken?: string, newTitleFilter?: string, newPollI
     pollIntervalS.value = newPollInterval;
     localStorage.setItem(POLL_INTERVAL_KEY, String(newPollInterval));
     startPolling();
+  }
+
+  if (newSlaWarningHours !== undefined) {
+    slaWarningHours.value = newSlaWarningHours;
+    localStorage.setItem(SLA_WARNING_KEY, String(newSlaWarningHours));
+  }
+
+  if (newSlaBreachHours !== undefined) {
+    slaBreachHours.value = newSlaBreachHours;
+    localStorage.setItem(SLA_BREACH_KEY, String(newSlaBreachHours));
+  }
+
+  if (newCommentFireThreshold !== undefined) {
+    commentFireThreshold.value = newCommentFireThreshold;
+    localStorage.setItem(COMMENT_FIRE_THRESHOLD_KEY, String(newCommentFireThreshold));
   }
 }
 
@@ -818,7 +841,7 @@ onMounted(async () => {
         <PrTable
           v-if="allFilteredPrs.length"
           :prs="allFilteredPrs"
-          :comment-fire-threshold="COMMENT_FIRE_THRESHOLD"
+          :comment-fire-threshold="commentFireThreshold"
           :show-repo="true"
         />
 
@@ -917,6 +940,9 @@ onMounted(async () => {
       :current-token="token"
       :current-title-filter="titleFilterRegex"
       :current-poll-interval="pollIntervalS"
+      :current-sla-warning-hours="slaWarningHours"
+      :current-sla-breach-hours="slaBreachHours"
+      :current-comment-fire-threshold="commentFireThreshold"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"
