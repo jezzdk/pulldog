@@ -4,7 +4,8 @@ import Dialog from "@/components/ui/Dialog.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
 import Label from "@/components/ui/Label.vue";
-import { RefreshCw } from "lucide-vue-next";
+import Tooltip from "@/components/ui/Tooltip.vue";
+import { RefreshCw, Info } from "lucide-vue-next";
 import Switch from "@/components/ui/Switch.vue";
 
 type Option = { label: string; value: number };
@@ -136,163 +137,261 @@ function handleSave(): void {
 
 <template>
   <Dialog :open="open" @close="$emit('close')">
-    <div class="space-y-4">
+    <div class="space-y-3">
       <h2 class="font-mono text-sm font-semibold text-foreground">Settings</h2>
 
-      <!-- Poll Interval -->
-      <div class="space-y-1.5">
-        <Label>Poll Interval</Label>
-        <select
-          v-model.number="pollIntervalInput"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option
-            v-for="opt in POLL_INTERVAL_OPTIONS"
-            :key="opt.value"
-            :value="opt.value"
+      <div class="space-y-3">
+        <!-- Sync -->
+        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
           >
-            {{ opt.label }}
-          </option>
-        </select>
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          How often to refresh pull requests.
-        </p>
-      </div>
+            Sync
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Poll Interval</Label>
+                <Tooltip
+                  text="How often to refresh pull requests."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <select
+                v-model.number="pollIntervalInput"
+                class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option
+                  v-for="opt in POLL_INTERVAL_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
 
-      <!-- SLA thresholds -->
-      <div class="space-y-1.5">
-        <Label>SLA Warning</Label>
-        <select
-          v-model.number="slaWarningHoursInput"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option
-            v-for="opt in warningOptions"
-            :key="opt.value"
-            :value="opt.value"
+        <!-- SLA -->
+        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
           >
-            {{ opt.label }}
-          </option>
-        </select>
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          PRs open longer than this are flagged as warning.
-        </p>
-      </div>
+            SLA
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Warning</Label>
+                <Tooltip
+                  text="PRs open longer than this are flagged as warning."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <select
+                v-model.number="slaWarningHoursInput"
+                class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option
+                  v-for="opt in warningOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Breach</Label>
+                <Tooltip
+                  text="PRs open longer than this are flagged as breach."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <select
+                v-model.number="slaBreachHoursInput"
+                class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option
+                  v-for="opt in breachOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Comment Fire</Label>
+                <Tooltip
+                  text="PRs with at least this many comments show a fire indicator."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <Input
+                v-model="commentFireThresholdInput"
+                type="number"
+                min="1"
+                placeholder="10"
+                class="w-40"
+              />
+            </div>
+          </div>
+        </fieldset>
 
-      <div class="space-y-1.5">
-        <Label>SLA Breach</Label>
-        <select
-          v-model.number="slaBreachHoursInput"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option
-            v-for="opt in breachOptions"
-            :key="opt.value"
-            :value="opt.value"
+        <!-- PR List -->
+        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
           >
-            {{ opt.label }}
-          </option>
-        </select>
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          PRs open longer than this are flagged as breach.
-        </p>
-      </div>
+            PR List
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Hide Drafts</Label>
+                <Tooltip
+                  text='Hide draft PRs when the "All" filter is active.'
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <label class="flex w-40 cursor-pointer items-center">
+                <Switch v-model="hideDraftsInAllInput" size="sm" />
+              </label>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Hide Merged</Label>
+                <Tooltip
+                  text='Hide merged PRs when the "All" filter is active.'
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <label class="flex w-40 cursor-pointer items-center">
+                <Switch v-model="hideMergedInAllInput" size="sm" />
+              </label>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Title Filter</Label>
+                <Tooltip
+                  text="Regex — PRs with matching titles are hidden from the table and stats."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <div class="w-40">
+                <Input
+                  v-model="titleFilterInput"
+                  type="text"
+                  placeholder="e.g. ^WIP"
+                  :class="!titleFilterValid ? 'border-destructive' : ''"
+                />
+                <p
+                  v-if="!titleFilterValid"
+                  class="mt-0.5 font-mono text-[10px] text-destructive"
+                >
+                  Invalid regex.
+                </p>
+              </div>
+            </div>
+          </div>
+        </fieldset>
 
-      <!-- Comment fire threshold -->
-      <div class="space-y-1.5">
-        <Label>Comment Fire Threshold</Label>
-        <Input
-          v-model="commentFireThresholdInput"
-          type="number"
-          min="1"
-          placeholder="10"
-        />
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          PRs with at least this many comments show a fire indicator.
-        </p>
-      </div>
-
-      <!-- Token (only when not sourced from .env) -->
-      <div v-if="!hasEnvToken" class="space-y-1.5">
-        <Label>GitHub Token</Label>
-        <div class="flex gap-2">
-          <Input
-            v-model="tokenInput"
-            type="password"
-            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-            class="flex-1"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            @click="fetchRepos(tokenInput.trim())"
+        <!-- Notifications -->
+        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
           >
-            <RefreshCw class="h-3 w-3" />
-          </Button>
-        </div>
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          Saved to localStorage — never sent to any server.
-        </p>
-      </div>
+            Notifications
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Confetti on Merge</Label>
+                <Tooltip
+                  text="Show a confetti animation when a PR is merged."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <label class="flex w-40 cursor-pointer items-center">
+                <Switch v-model="confettiEnabledInput" size="sm" />
+              </label>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Voice on Merge</Label>
+                <Tooltip
+                  text="Speak an announcement when a PR is merged. Requires sound to be enabled."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <label class="flex w-40 cursor-pointer items-center">
+                <Switch v-model="ttsEnabledInput" size="sm" />
+              </label>
+            </div>
+          </div>
+        </fieldset>
 
-      <!-- All filter visibility -->
-      <div class="space-y-1.5">
-        <Label>PR List</Label>
-        <div class="flex gap-6">
-          <label class="flex cursor-pointer items-center gap-2">
-            <Switch v-model="hideDraftsInAllInput" />
-            <span class="font-mono text-xs text-foreground">Hide drafts</span>
-          </label>
-          <label class="flex cursor-pointer items-center gap-2">
-            <Switch v-model="hideMergedInAllInput" />
-            <span class="font-mono text-xs text-foreground">Hide merged</span>
-          </label>
-        </div>
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          Hide draft and/or merged PRs when the "All" filter is active.
-        </p>
-      </div>
-
-      <!-- Notifications -->
-      <div class="space-y-1.5">
-        <Label>Notifications</Label>
-        <div class="flex flex-col gap-2">
-          <label class="flex cursor-pointer items-center gap-2">
-            <Switch v-model="confettiEnabledInput" />
-            <span class="font-mono text-xs text-foreground"
-              >Confetti on merge</span
-            >
-          </label>
-          <label class="flex cursor-pointer items-center gap-2">
-            <Switch v-model="ttsEnabledInput" />
-            <span class="font-mono text-xs text-foreground"
-              >Voice announcement on merge</span
-            >
-          </label>
-        </div>
-        <p class="font-mono text-[10.5px] text-muted-foreground">
-          Voice announcements require sound to be enabled.
-        </p>
-      </div>
-
-      <!-- PR Title Filter -->
-      <div class="space-y-1.5">
-        <Label>PR Title Filter</Label>
-        <Input
-          v-model="titleFilterInput"
-          type="text"
-          placeholder="e.g. ^WIP|dependabot"
-          :class="!titleFilterValid ? 'border-destructive' : ''"
-        />
-        <p
-          v-if="!titleFilterValid"
-          class="font-mono text-[10.5px] text-destructive"
+        <!-- Authentication -->
+        <fieldset
+          v-if="!hasEnvToken"
+          class="rounded border border-border px-3 pb-2.5 pt-1"
         >
-          Invalid regular expression.
-        </p>
-        <p v-else class="font-mono text-[10.5px] text-muted-foreground">
-          Regex — PRs with matching titles are hidden from the table and stats.
-        </p>
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+          >
+            Authentication
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>GitHub Token</Label>
+                <Tooltip
+                  text="Saved to localStorage — never sent to any server."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <div class="flex w-40 gap-1">
+                <Input
+                  v-model="tokenInput"
+                  type="password"
+                  placeholder="ghp_..."
+                  class="min-w-0 flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  @click="fetchRepos(tokenInput.trim())"
+                >
+                  <RefreshCw class="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </fieldset>
       </div>
 
       <div class="flex gap-2 pt-1">
