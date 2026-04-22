@@ -222,7 +222,7 @@ const authorPrCounts = computed(() => {
   > = {};
 
   for (const pr of baseFilteredPRs.value) {
-    if (!pr.draft && pr.reviewStatus !== "merged") {
+    if (pr.reviewStatus === "merged") {
       const { login, avatar_url } = pr.author;
 
       if (!counts[login]) {
