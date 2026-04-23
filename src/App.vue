@@ -152,6 +152,8 @@ function addToast(
 const {
   soundEnabled,
   ttsEnabled,
+  prSoundEnabled,
+  mergeSoundEnabled,
   toggle: toggleSound,
   playNewPR,
   playMerged,
@@ -650,6 +652,8 @@ function handleSaveSettings(
   newHideMergedInAll?: boolean,
   newConfettiEnabled?: boolean,
   newTtsEnabled?: boolean,
+  newPrSoundEnabled?: boolean,
+  newMergeSoundEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -713,6 +717,19 @@ function handleSaveSettings(
   if (newTtsEnabled !== undefined) {
     ttsEnabled.value = newTtsEnabled;
     localStorage.setItem("pulldog-tts-enabled", String(newTtsEnabled));
+  }
+
+  if (newPrSoundEnabled !== undefined) {
+    prSoundEnabled.value = newPrSoundEnabled;
+    localStorage.setItem("pulldog-pr-sound-enabled", String(newPrSoundEnabled));
+  }
+
+  if (newMergeSoundEnabled !== undefined) {
+    mergeSoundEnabled.value = newMergeSoundEnabled;
+    localStorage.setItem(
+      "pulldog-merge-sound-enabled",
+      String(newMergeSoundEnabled),
+    );
   }
 }
 
@@ -1017,6 +1034,8 @@ onMounted(async () => {
       :current-hide-merged-in-all="hideMergedInAll"
       :current-confetti-enabled="confettiEnabled"
       :current-tts-enabled="ttsEnabled"
+      :current-pr-sound-enabled="prSoundEnabled"
+      :current-merge-sound-enabled="mergeSoundEnabled"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"

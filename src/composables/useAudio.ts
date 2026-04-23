@@ -5,18 +5,30 @@ import { useOpenAI } from "./useOpenAI";
 interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
   ttsEnabled: Ref<boolean>;
+  prSoundEnabled: Ref<boolean>;
+  mergeSoundEnabled: Ref<boolean>;
   toggle: () => void;
   toggleTts: () => void;
+  togglePrSound: () => void;
+  toggleMergeSound: () => void;
   playNewPR: () => void;
   playMerged: (authorName: string) => Promise<void>;
 }
 
 const STORAGE_KEY = "pulldog-sound";
 const TTS_STORAGE_KEY = "pulldog-tts-enabled";
+const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
+const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
 
 export function useAudio(): UseAudioReturn {
   const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
   const ttsEnabled = ref(localStorage.getItem(TTS_STORAGE_KEY) === "true");
+  const prSoundEnabled = ref(
+    localStorage.getItem(PR_SOUND_KEY) !== "false",
+  );
+  const mergeSoundEnabled = ref(
+    localStorage.getItem(MERGE_SOUND_KEY) !== "false",
+  );
   let audioCtx: AudioContext | null = null;
 
   function ctx(): AudioContext {
@@ -35,7 +47,7 @@ export function useAudio(): UseAudioReturn {
   // Sharp metallic strike transient + clean high-pitched ring that
   // decays over ~1.5 s.
   function playNewPR(): void {
-    if (!soundEnabled.value) {
+    if (!soundEnabled.value || !prSoundEnabled.value) {
       return;
     }
 
@@ -90,15 +102,17 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
-  // ── TTS merge announcement with gong ──────────────────────────
-  // Always plays gong immediately, then tries to play TTS
+  // ── TTS merge announcement with merge sound ──────────────────────────
+  // Always plays merge sound immediately, then tries to play TTS
   async function playMerged(authorName: string): Promise<void> {
     if (!soundEnabled.value) {
       return;
     }
 
-    // Play gong immediately
-    playGong();
+    // Play merge sound immediately
+    if (mergeSoundEnabled.value) {
+      playMergeSound();
+    }
 
     // Try to play TTS on top (don't wait for it)
     if (!ttsEnabled.value) {
@@ -130,19 +144,19 @@ export function useAudio(): UseAudioReturn {
             source.connect(c.destination);
             source.start(0);
           } catch (_) {
-            /* TTS playback failed, gong already played */
+            /* TTS playback failed, merge sound already played */
           }
         },
         () => {
-          /* TTS decode failed, gong already played */
+          /* TTS decode failed, merge sound already played */
         },
       );
     } catch (_) {
-      /* TTS not available, gong already played */
+      /* TTS not available, merge sound already played */
     }
   }
 
-  function playGong(): void {
+  function playMergeSound(): void {
     try {
       const c = ctx(),
         t = c.currentTime;
@@ -194,13 +208,23 @@ export function useAudio(): UseAudioReturn {
         osc.stop(t + decay + 0.1);
       }
     } catch (_) {
-      /* gong unavailable */
+      /* merge sound unavailable */
     }
   }
 
   function toggleTts(): void {
     ttsEnabled.value = !ttsEnabled.value;
     localStorage.setItem(TTS_STORAGE_KEY, String(ttsEnabled.value));
+  }
+
+  function togglePrSound(): void {
+    prSoundEnabled.value = !prSoundEnabled.value;
+    localStorage.setItem(PR_SOUND_KEY, String(prSoundEnabled.value));
+  }
+
+  function toggleMergeSound(): void {
+    mergeSoundEnabled.value = !mergeSoundEnabled.value;
+    localStorage.setItem(MERGE_SOUND_KEY, String(mergeSoundEnabled.value));
   }
 
   function toggle(): void {
@@ -221,8 +245,12 @@ export function useAudio(): UseAudioReturn {
   return {
     soundEnabled,
     ttsEnabled,
+    prSoundEnabled,
+    mergeSoundEnabled,
     toggle,
     toggleTts,
+    togglePrSound,
+    toggleMergeSound,
     playNewPR,
     playMerged,
   } as UseAudioReturn;
