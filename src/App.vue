@@ -152,6 +152,7 @@ function addToast(
 const {
   soundEnabled,
   ttsEnabled,
+  prTtsEnabled,
   prSoundEnabled,
   mergeSoundEnabled,
   toggle: toggleSound,
@@ -169,6 +170,11 @@ const testAuthors = [
   "grace",
   "henry",
 ];
+
+function playNewPRTest(): void {
+  const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
+  void playNewPR(author);
+}
 
 function playMergedTest(): void {
   const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
@@ -465,6 +471,7 @@ async function loadAll(isRefresh = false): Promise<void> {
   let anyOk = false;
   let shouldPlayDing = false;
   let shouldPlayGong = false;
+  let newPrAuthorName = "";
   let mergedAuthorName = "";
 
   for (let i = 0; i < results.length; i++) {
@@ -484,6 +491,10 @@ async function loadAll(isRefresh = false): Promise<void> {
           if (prevStatus === undefined) {
             // Brand-new PR — only notify for genuinely new open (non-draft) PRs
             if (p.reviewStatus !== "merged" && !p.draft) {
+              if (!shouldPlayDing) {
+                newPrAuthorName = p.author.login;
+              }
+
               shouldPlayDing = true;
               addToast(
                 "new",
@@ -532,7 +543,7 @@ async function loadAll(isRefresh = false): Promise<void> {
       fireConfetti();
     }
   } else if (shouldPlayDing) {
-    playNewPR();
+    void playNewPR(newPrAuthorName);
   }
 
   if (!isRefresh && !anyOk) {
@@ -652,6 +663,7 @@ function handleSaveSettings(
   newHideMergedInAll?: boolean,
   newConfettiEnabled?: boolean,
   newTtsEnabled?: boolean,
+  newPrTtsEnabled?: boolean,
   newPrSoundEnabled?: boolean,
   newMergeSoundEnabled?: boolean,
 ): void {
@@ -717,6 +729,11 @@ function handleSaveSettings(
   if (newTtsEnabled !== undefined) {
     ttsEnabled.value = newTtsEnabled;
     localStorage.setItem("pulldog-tts-enabled", String(newTtsEnabled));
+  }
+
+  if (newPrTtsEnabled !== undefined) {
+    prTtsEnabled.value = newPrTtsEnabled;
+    localStorage.setItem("pulldog-pr-tts-enabled", String(newPrTtsEnabled));
   }
 
   if (newPrSoundEnabled !== undefined) {
@@ -851,7 +868,7 @@ onMounted(async () => {
       :poll-countdown="pollCountdown"
       :test-mode="TEST_MODE"
       :has-env-token="hasEnvToken"
-      :on-test-new-pr="playNewPR"
+      :on-test-new-pr="playNewPRTest"
       :on-test-merged="playMergedTest"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
@@ -1034,6 +1051,7 @@ onMounted(async () => {
       :current-hide-merged-in-all="hideMergedInAll"
       :current-confetti-enabled="confettiEnabled"
       :current-tts-enabled="ttsEnabled"
+      :current-pr-tts-enabled="prTtsEnabled"
       :current-pr-sound-enabled="prSoundEnabled"
       :current-merge-sound-enabled="mergeSoundEnabled"
       :fetch-repos="fetchAvailableRepos"

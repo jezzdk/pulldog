@@ -5,27 +5,29 @@ import { useOpenAI } from "./useOpenAI";
 interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
   ttsEnabled: Ref<boolean>;
+  prTtsEnabled: Ref<boolean>;
   prSoundEnabled: Ref<boolean>;
   mergeSoundEnabled: Ref<boolean>;
   toggle: () => void;
   toggleTts: () => void;
+  togglePrTts: () => void;
   togglePrSound: () => void;
   toggleMergeSound: () => void;
-  playNewPR: () => void;
+  playNewPR: (authorName: string) => Promise<void>;
   playMerged: (authorName: string) => Promise<void>;
 }
 
 const STORAGE_KEY = "pulldog-sound";
 const TTS_STORAGE_KEY = "pulldog-tts-enabled";
+const PR_TTS_KEY = "pulldog-pr-tts-enabled";
 const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
 
 export function useAudio(): UseAudioReturn {
   const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
   const ttsEnabled = ref(localStorage.getItem(TTS_STORAGE_KEY) === "true");
-  const prSoundEnabled = ref(
-    localStorage.getItem(PR_SOUND_KEY) !== "false",
-  );
+  const prTtsEnabled = ref(localStorage.getItem(PR_TTS_KEY) === "true");
+  const prSoundEnabled = ref(localStorage.getItem(PR_SOUND_KEY) !== "false");
   const mergeSoundEnabled = ref(
     localStorage.getItem(MERGE_SOUND_KEY) !== "false",
   );
@@ -46,59 +48,101 @@ export function useAudio(): UseAudioReturn {
   // ── Reception desk bell ──────────────────────────────────────────
   // Sharp metallic strike transient + clean high-pitched ring that
   // decays over ~1.5 s.
-  function playNewPR(): void {
-    if (!soundEnabled.value || !prSoundEnabled.value) {
+  async function playNewPR(authorName: string): Promise<void> {
+    if (!soundEnabled.value) {
+      return;
+    }
+
+    if (prSoundEnabled.value) {
+      try {
+        const c = ctx(),
+          t = c.currentTime;
+
+        // Strike transient: brief filtered noise burst
+        const bufLen = Math.floor(c.sampleRate * 0.007);
+        const buf = c.createBuffer(1, bufLen, c.sampleRate);
+        const d = buf.getChannelData(0);
+
+        for (let i = 0; i < bufLen; i++) {
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 3);
+        }
+
+        const click = c.createBufferSource();
+        const clickGain = c.createGain();
+        const clickFilter = c.createBiquadFilter();
+        clickFilter.type = "highpass";
+        clickFilter.frequency.value = 3000;
+        click.buffer = buf;
+        click.connect(clickFilter);
+        clickFilter.connect(clickGain);
+        clickGain.gain.setValueAtTime(0.35, t);
+        clickGain.connect(c.destination);
+        click.start(t);
+
+        // Bell ring partials — fundamental ~2800 Hz (small metal bell)
+        const partials: [number, number, number][] = [
+          [2800, 0.38, 1.6], // fundamental
+          [5620, 0.14, 0.9], // 2nd harmonic (slightly inharmonic)
+          [8400, 0.05, 0.5], // 3rd
+          [900, 0.04, 1.2], //  body resonance (the "ting" warmth)
+        ];
+
+        for (const [freq, vol, decay] of partials) {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(vol, t + 0.004); // instant attack
+          gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+          osc.connect(gain);
+          gain.connect(c.destination);
+          osc.start(t);
+          osc.stop(t + decay + 0.05);
+        }
+      } catch (_) {
+        /* audio not available */
+      }
+    }
+
+    if (!prTtsEnabled.value) {
       return;
     }
 
     try {
-      const c = ctx(),
-        t = c.currentTime;
-
-      // Strike transient: brief filtered noise burst
-      const bufLen = Math.floor(c.sampleRate * 0.007);
-      const buf = c.createBuffer(1, bufLen, c.sampleRate);
-      const d = buf.getChannelData(0);
-
-      for (let i = 0; i < bufLen; i++) {
-        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 3);
-      }
-
-      const click = c.createBufferSource();
-      const clickGain = c.createGain();
-      const clickFilter = c.createBiquadFilter();
-      clickFilter.type = "highpass";
-      clickFilter.frequency.value = 3000;
-      click.buffer = buf;
-      click.connect(clickFilter);
-      clickFilter.connect(clickGain);
-      clickGain.gain.setValueAtTime(0.35, t);
-      clickGain.connect(c.destination);
-      click.start(t);
-
-      // Bell ring partials — fundamental ~2800 Hz (small metal bell)
-      const partials: [number, number, number][] = [
-        [2800, 0.38, 1.6], // fundamental
-        [5620, 0.14, 0.9], // 2nd harmonic (slightly inharmonic)
-        [8400, 0.05, 0.5], // 3rd
-        [900, 0.04, 1.2], //  body resonance (the "ting" warmth)
+      const { textToSpeech } = useOpenAI();
+      const templates = [
+        `${authorName} opened a new pull request`,
+        `New PR from ${authorName}`,
+        `${authorName} just opened a PR`,
+        `A new pull request by ${authorName}`,
+        `${authorName} has a new PR up for review`,
+        `Pull request from ${authorName}`,
       ];
+      const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+      const message = templates[Math.floor(Math.random() * templates.length)]!;
+      const voice = voices[Math.floor(Math.random() * voices.length)]!;
+      const audioBuffer = await textToSpeech(message, voice);
 
-      for (const [freq, vol, decay] of partials) {
-        const osc = c.createOscillator();
-        const gain = c.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(vol, t + 0.004); // instant attack
-        gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
-        osc.connect(gain);
-        gain.connect(c.destination);
-        osc.start(t);
-        osc.stop(t + decay + 0.05);
-      }
+      const c = ctx();
+      c.decodeAudioData(
+        audioBuffer,
+        (decodedBuffer) => {
+          try {
+            const source = c.createBufferSource();
+            source.buffer = decodedBuffer;
+            source.connect(c.destination);
+            source.start(0);
+          } catch (_) {
+            /* TTS playback failed */
+          }
+        },
+        () => {
+          /* TTS decode failed */
+        },
+      );
     } catch (_) {
-      /* audio not available */
+      /* TTS not available */
     }
   }
 
@@ -217,6 +261,11 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(TTS_STORAGE_KEY, String(ttsEnabled.value));
   }
 
+  function togglePrTts(): void {
+    prTtsEnabled.value = !prTtsEnabled.value;
+    localStorage.setItem(PR_TTS_KEY, String(prTtsEnabled.value));
+  }
+
   function togglePrSound(): void {
     prSoundEnabled.value = !prSoundEnabled.value;
     localStorage.setItem(PR_SOUND_KEY, String(prSoundEnabled.value));
@@ -238,17 +287,19 @@ export function useAudio(): UseAudioReturn {
         /* ignore */
       }
 
-      playNewPR();
+      void playNewPR("");
     }
   }
 
   return {
     soundEnabled,
     ttsEnabled,
+    prTtsEnabled,
     prSoundEnabled,
     mergeSoundEnabled,
     toggle,
     toggleTts,
+    togglePrTts,
     togglePrSound,
     toggleMergeSound,
     playNewPR,

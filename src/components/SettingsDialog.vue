@@ -46,6 +46,7 @@ const props = defineProps<{
   currentHideMergedInAll: boolean;
   currentConfettiEnabled: boolean;
   currentTtsEnabled: boolean;
+  currentPrTtsEnabled: boolean;
   currentPrSoundEnabled: boolean;
   currentMergeSoundEnabled: boolean;
   fetchRepos: (token?: string) => Promise<string[]>;
@@ -64,6 +65,7 @@ const emit = defineEmits<{
     hideMergedInAll?: boolean,
     confettiEnabled?: boolean,
     ttsEnabled?: boolean,
+    prTtsEnabled?: boolean,
     newPrSoundEnabled?: boolean,
     newMergeSoundEnabled?: boolean,
   ];
@@ -81,6 +83,7 @@ const hideDraftsInAllInput = ref(props.currentHideDraftsInAll);
 const hideMergedInAllInput = ref(props.currentHideMergedInAll);
 const confettiEnabledInput = ref(props.currentConfettiEnabled);
 const ttsEnabledInput = ref(props.currentTtsEnabled);
+const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
 const prSoundEnabledInput = ref(props.currentPrSoundEnabled);
 const mergeSoundEnabledInput = ref(props.currentMergeSoundEnabled);
 
@@ -100,6 +103,7 @@ watch(
       hideMergedInAllInput.value = props.currentHideMergedInAll;
       confettiEnabledInput.value = props.currentConfettiEnabled;
       ttsEnabledInput.value = props.currentTtsEnabled;
+      prTtsEnabledInput.value = props.currentPrTtsEnabled;
       prSoundEnabledInput.value = props.currentPrSoundEnabled;
       mergeSoundEnabledInput.value = props.currentMergeSoundEnabled;
     }
@@ -139,6 +143,7 @@ function handleSave(): void {
     hideMergedInAllInput.value,
     confettiEnabledInput.value,
     ttsEnabledInput.value,
+    prTtsEnabledInput.value,
     prSoundEnabledInput.value,
     mergeSoundEnabledInput.value,
   );
@@ -331,62 +336,87 @@ function handleSave(): void {
           >
             Notifications
           </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Sound on New PR</Label>
-                <Tooltip
-                  text="Play a sound when a new PR is detected."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
+          <div class="space-y-3">
+            <!-- New PR -->
+            <div class="space-y-2">
+              <p class="font-mono text-[10px] text-muted-foreground">New PR</p>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Sound</Label>
+                  <Tooltip
+                    text="Play a sound when a new PR is detected."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="prSoundEnabledInput" size="sm" />
+                </label>
               </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="prSoundEnabledInput" size="sm" />
-              </label>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Voice</Label>
+                  <Tooltip
+                    text="Speak an announcement when a new PR is opened. Requires sound to be enabled."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="prTtsEnabledInput" size="sm" />
+                </label>
+              </div>
             </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Sound on Merge</Label>
-                <Tooltip
-                  text="Play a sound when a PR is merged."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
+
+            <div class="border-t border-border" />
+
+            <!-- Merge -->
+            <div class="space-y-2">
+              <p class="font-mono text-[10px] text-muted-foreground">Merge</p>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Sound</Label>
+                  <Tooltip
+                    text="Play a sound when a PR is merged."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="mergeSoundEnabledInput" size="sm" />
+                </label>
               </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="mergeSoundEnabledInput" size="sm" />
-              </label>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Confetti on Merge</Label>
-                <Tooltip
-                  text="Show a confetti animation when a PR is merged."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Voice</Label>
+                  <Tooltip
+                    text="Speak an announcement when a PR is merged. Requires sound to be enabled."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="ttsEnabledInput" size="sm" />
+                </label>
               </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="confettiEnabledInput" size="sm" />
-              </label>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Voice on Merge</Label>
-                <Tooltip
-                  text="Speak an announcement when a PR is merged. Requires sound to be enabled."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Confetti</Label>
+                  <Tooltip
+                    text="Show a confetti animation when a PR is merged."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="confettiEnabledInput" size="sm" />
+                </label>
               </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="ttsEnabledInput" size="sm" />
-              </label>
             </div>
           </div>
         </fieldset>
