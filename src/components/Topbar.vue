@@ -4,6 +4,7 @@ import Button from "@/components/ui/Button.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import Tooltip from "@/components/ui/Tooltip.vue";
 import { useFullscreen } from "@/composables/useFullscreen";
+import { ref } from "vue";
 import {
   RefreshCw,
   Settings,
@@ -15,6 +16,8 @@ import {
   Minimize2,
   Power,
 } from "lucide-vue-next";
+
+const testUsername = ref("");
 
 defineProps<{
   statOpen: number;
@@ -30,6 +33,7 @@ defineProps<{
   hasEnvToken: boolean;
   onTestNewPr: () => void;
   onTestMerged: () => void;
+  onTestMergedWithAuthor: (author: string) => void;
 }>();
 
 defineEmits<{
@@ -174,6 +178,21 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       @click="onTestMerged()"
     >
       🎉 merge
+    </Button>
+    <span class="font-mono text-[10px] text-muted-foreground/40 ml-2">author:</span>
+    <input
+      v-model="testUsername"
+      placeholder="github username"
+      class="h-6 rounded border border-border bg-background px-2 font-mono text-[10px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+    />
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-6 px-2 font-mono text-[10px]"
+      :disabled="!soundEnabled || !testUsername"
+      @click="onTestMergedWithAuthor(testUsername)"
+    >
+      ok
     </Button>
   </div>
 </template>

@@ -185,6 +185,14 @@ function playMergedTest(): void {
   }
 }
 
+function playMergedTestWithAuthor(author: string): void {
+  void playMerged(author);
+
+  if (confettiEnabled.value) {
+    fireConfetti();
+  }
+}
+
 const tokenComputed = computed(() => token.value);
 const compiledTitleFilter = computed<RegExp | null>(() => {
   if (!titleFilterRegex.value) {
@@ -870,6 +878,7 @@ onMounted(async () => {
       :has-env-token="hasEnvToken"
       :on-test-new-pr="playNewPRTest"
       :on-test-merged="playMergedTest"
+      :on-test-merged-with-author="playMergedTestWithAuthor"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
       @open-repos="showRepos = true"

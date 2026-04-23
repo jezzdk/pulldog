@@ -127,10 +127,15 @@ export function useAudio(): UseAudioReturn {
       return;
     }
 
-    // Play merge sound immediately
+    // Play merge sound immediately — prefer author's custom sound if available
     if (mergeSoundEnabled.value) {
       try {
-        const buffer = await loadBuffer(mergedPrUrl);
+        const customUrl = authorName
+          ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pulldog.mp3`
+          : null;
+        const buffer = customUrl
+          ? await loadBuffer(customUrl).catch(() => loadBuffer(mergedPrUrl))
+          : await loadBuffer(mergedPrUrl);
         playBuffer(buffer);
       } catch (_) {
         /* merge sound unavailable */
