@@ -1,6 +1,8 @@
 // composables/useAudio.ts
 import { ref, type Ref } from "vue";
 import { useOpenAI } from "./useOpenAI";
+import openPrUrl from "@/assets/open_pr.mp3?url";
+import mergedPrUrl from "@/assets/merged_pr.mp3?url";
 
 interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
@@ -32,6 +34,24 @@ export function useAudio(): UseAudioReturn {
     localStorage.getItem(MERGE_SOUND_KEY) !== "false",
   );
   let audioCtx: AudioContext | null = null;
+  const bufferCache = new Map<string, AudioBuffer>();
+
+  async function loadBuffer(url: string): Promise<AudioBuffer> {
+    if (bufferCache.has(url)) return bufferCache.get(url)!;
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const decoded = await ctx().decodeAudioData(arrayBuffer);
+    bufferCache.set(url, decoded);
+    return decoded;
+  }
+
+  function playBuffer(buffer: AudioBuffer): void {
+    const c = ctx();
+    const source = c.createBufferSource();
+    source.buffer = buffer;
+    source.connect(c.destination);
+    source.start(0);
+  }
 
   function ctx(): AudioContext {
     if (!audioCtx) {
@@ -45,8 +65,6 @@ export function useAudio(): UseAudioReturn {
     return audioCtx;
   }
 
-  // ── Two-tone ascending chime ─────────────────────────────────────
-  // A4 (440 Hz) followed by E5 (660 Hz), soft doorbell feel, ~0.4 s each.
   async function playNewPR(authorName: string): Promise<void> {
     if (!soundEnabled.value) {
       return;
@@ -54,27 +72,8 @@ export function useAudio(): UseAudioReturn {
 
     if (prSoundEnabled.value) {
       try {
-        const c = ctx(),
-          t = c.currentTime;
-
-        const tones: [number, number, number][] = [
-          [440, t, 0.4],
-          [660, t + 0.18, 0.4],
-        ];
-
-        for (const [freq, start, decay] of tones) {
-          const osc = c.createOscillator();
-          const gain = c.createGain();
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(freq, start);
-          gain.gain.setValueAtTime(0, start);
-          gain.gain.linearRampToValueAtTime(0.3, start + 0.008);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + decay);
-          osc.connect(gain);
-          gain.connect(c.destination);
-          osc.start(start);
-          osc.stop(start + decay + 0.05);
-        }
+        const buffer = await loadBuffer(openPrUrl);
+        playBuffer(buffer);
       } catch (_) {
         /* audio not available */
       }
@@ -130,7 +129,12 @@ export function useAudio(): UseAudioReturn {
 
     // Play merge sound immediately
     if (mergeSoundEnabled.value) {
-      playMergeSound();
+      try {
+        const buffer = await loadBuffer(mergedPrUrl);
+        playBuffer(buffer);
+      } catch (_) {
+        /* merge sound unavailable */
+      }
     }
 
     // Try to play TTS on top (don't wait for it)
@@ -172,62 +176,6 @@ export function useAudio(): UseAudioReturn {
       );
     } catch (_) {
       /* TTS not available, merge sound already played */
-    }
-  }
-
-  function playMergeSound(): void {
-    try {
-      const c = ctx(),
-        t = c.currentTime;
-
-      // Mallet strike: low-passed thump
-      const bufLen = Math.floor(c.sampleRate * 0.025);
-      const buf = c.createBuffer(1, bufLen, c.sampleRate);
-      const d = buf.getChannelData(0);
-
-      for (let i = 0; i < bufLen; i++) {
-        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 5);
-      }
-
-      const strike = c.createBufferSource();
-      const strikeFilter = c.createBiquadFilter();
-      strikeFilter.type = "lowpass";
-      strikeFilter.frequency.value = 400;
-      const strikeGain = c.createGain();
-      strike.buffer = buf;
-      strike.connect(strikeFilter);
-      strikeFilter.connect(strikeGain);
-      strikeGain.gain.setValueAtTime(0.5, t);
-      strikeGain.connect(c.destination);
-      strike.start(t);
-
-      // Gong partials — slightly inharmonic, all with bloom envelope.
-      const partials: [number, number, number, number, number][] = [
-        [85, 0.05, 0.55, 0.08, 4.5],
-        [172, 0.03, 0.28, 0.07, 4.0],
-        [268, 0.02, 0.18, 0.06, 3.5],
-        [365, 0.01, 0.12, 0.055, 3.0],
-        [490, 0.01, 0.07, 0.05, 2.5],
-        [640, 0.0, 0.04, 0.04, 2.0],
-        [880, 0.0, 0.025, 0.03, 1.4],
-        [1200, 0.0, 0.012, 0.025, 0.9],
-      ];
-
-      for (const [freq, initVol, peakVol, bloomTime, decay] of partials) {
-        const osc = c.createOscillator();
-        const gain = c.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(initVol, t);
-        gain.gain.linearRampToValueAtTime(peakVol, t + bloomTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
-        osc.connect(gain);
-        gain.connect(c.destination);
-        osc.start(t);
-        osc.stop(t + decay + 0.1);
-      }
-    } catch (_) {
-      /* merge sound unavailable */
     }
   }
 
