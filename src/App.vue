@@ -155,6 +155,8 @@ const {
   prTtsEnabled,
   prSoundEnabled,
   mergeSoundEnabled,
+  customSoundEnabled,
+  customPrSoundEnabled,
   toggle: toggleSound,
   playNewPR,
   playMerged,
@@ -674,6 +676,8 @@ function handleSaveSettings(
   newPrTtsEnabled?: boolean,
   newPrSoundEnabled?: boolean,
   newMergeSoundEnabled?: boolean,
+  newCustomSoundEnabled?: boolean,
+  newCustomPrSoundEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -754,6 +758,22 @@ function handleSaveSettings(
     localStorage.setItem(
       "pulldog-merge-sound-enabled",
       String(newMergeSoundEnabled),
+    );
+  }
+
+  if (newCustomSoundEnabled !== undefined) {
+    customSoundEnabled.value = newCustomSoundEnabled;
+    localStorage.setItem(
+      "pulldog-custom-sound-enabled",
+      String(newCustomSoundEnabled),
+    );
+  }
+
+  if (newCustomPrSoundEnabled !== undefined) {
+    customPrSoundEnabled.value = newCustomPrSoundEnabled;
+    localStorage.setItem(
+      "pulldog-custom-pr-sound-enabled",
+      String(newCustomPrSoundEnabled),
     );
   }
 }
@@ -1063,6 +1083,8 @@ onMounted(async () => {
       :current-pr-tts-enabled="prTtsEnabled"
       :current-pr-sound-enabled="prSoundEnabled"
       :current-merge-sound-enabled="mergeSoundEnabled"
+      :current-custom-sound-enabled="customSoundEnabled"
+      :current-custom-pr-sound-enabled="customPrSoundEnabled"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"

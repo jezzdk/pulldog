@@ -10,11 +10,15 @@ interface UseAudioReturn {
   prTtsEnabled: Ref<boolean>;
   prSoundEnabled: Ref<boolean>;
   mergeSoundEnabled: Ref<boolean>;
+  customSoundEnabled: Ref<boolean>;
+  customPrSoundEnabled: Ref<boolean>;
   toggle: () => void;
   toggleTts: () => void;
   togglePrTts: () => void;
   togglePrSound: () => void;
   toggleMergeSound: () => void;
+  toggleCustomSound: () => void;
+  toggleCustomPrSound: () => void;
   playNewPR: (authorName: string) => Promise<void>;
   playMerged: (authorName: string) => Promise<void>;
 }
@@ -24,6 +28,8 @@ const TTS_STORAGE_KEY = "pulldog-tts-enabled";
 const PR_TTS_KEY = "pulldog-pr-tts-enabled";
 const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
+const CUSTOM_SOUND_KEY = "pulldog-custom-sound-enabled";
+const CUSTOM_PR_SOUND_KEY = "pulldog-custom-pr-sound-enabled";
 
 export function useAudio(): UseAudioReturn {
   const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
@@ -33,11 +39,20 @@ export function useAudio(): UseAudioReturn {
   const mergeSoundEnabled = ref(
     localStorage.getItem(MERGE_SOUND_KEY) !== "false",
   );
+  const customSoundEnabled = ref(
+    localStorage.getItem(CUSTOM_SOUND_KEY) === "true",
+  );
+  const customPrSoundEnabled = ref(
+    localStorage.getItem(CUSTOM_PR_SOUND_KEY) === "true",
+  );
   let audioCtx: AudioContext | null = null;
   const bufferCache = new Map<string, AudioBuffer>();
 
   async function loadBuffer(url: string): Promise<AudioBuffer> {
-    if (bufferCache.has(url)) return bufferCache.get(url)!;
+    if (bufferCache.has(url)) {
+      return bufferCache.get(url)!;
+    }
+
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
     const decoded = await ctx().decodeAudioData(arrayBuffer);
@@ -72,7 +87,13 @@ export function useAudio(): UseAudioReturn {
 
     if (prSoundEnabled.value) {
       try {
-        const buffer = await loadBuffer(openPrUrl);
+        const customUrl =
+          customPrSoundEnabled.value && authorName
+            ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_open.mp3`
+            : null;
+        const buffer = customUrl
+          ? await loadBuffer(customUrl).catch(() => loadBuffer(openPrUrl))
+          : await loadBuffer(openPrUrl);
         playBuffer(buffer);
       } catch (_) {
         /* audio not available */
@@ -127,12 +148,13 @@ export function useAudio(): UseAudioReturn {
       return;
     }
 
-    // Play merge sound immediately — prefer author's custom sound if available
+    // Play merge sound immediately — prefer author's custom sound if enabled and available
     if (mergeSoundEnabled.value) {
       try {
-        const customUrl = authorName
-          ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pulldog.mp3`
-          : null;
+        const customUrl =
+          customSoundEnabled.value && authorName
+            ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_merged.mp3`
+            : null;
         const buffer = customUrl
           ? await loadBuffer(customUrl).catch(() => loadBuffer(mergedPrUrl))
           : await loadBuffer(mergedPrUrl);
@@ -204,6 +226,19 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(MERGE_SOUND_KEY, String(mergeSoundEnabled.value));
   }
 
+  function toggleCustomSound(): void {
+    customSoundEnabled.value = !customSoundEnabled.value;
+    localStorage.setItem(CUSTOM_SOUND_KEY, String(customSoundEnabled.value));
+  }
+
+  function toggleCustomPrSound(): void {
+    customPrSoundEnabled.value = !customPrSoundEnabled.value;
+    localStorage.setItem(
+      CUSTOM_PR_SOUND_KEY,
+      String(customPrSoundEnabled.value),
+    );
+  }
+
   function toggle(): void {
     soundEnabled.value = !soundEnabled.value;
     localStorage.setItem(STORAGE_KEY, String(soundEnabled.value));
@@ -225,11 +260,15 @@ export function useAudio(): UseAudioReturn {
     prTtsEnabled,
     prSoundEnabled,
     mergeSoundEnabled,
+    customSoundEnabled,
+    customPrSoundEnabled,
     toggle,
     toggleTts,
     togglePrTts,
     togglePrSound,
     toggleMergeSound,
+    toggleCustomSound,
+    toggleCustomPrSound,
     playNewPR,
     playMerged,
   } as UseAudioReturn;

@@ -49,6 +49,8 @@ const props = defineProps<{
   currentPrTtsEnabled: boolean;
   currentPrSoundEnabled: boolean;
   currentMergeSoundEnabled: boolean;
+  currentCustomSoundEnabled: boolean;
+  currentCustomPrSoundEnabled: boolean;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
@@ -68,6 +70,8 @@ const emit = defineEmits<{
     prTtsEnabled?: boolean,
     newPrSoundEnabled?: boolean,
     newMergeSoundEnabled?: boolean,
+    newCustomSoundEnabled?: boolean,
+    newCustomPrSoundEnabled?: boolean,
   ];
 }>();
 
@@ -86,6 +90,8 @@ const ttsEnabledInput = ref(props.currentTtsEnabled);
 const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
 const prSoundEnabledInput = ref(props.currentPrSoundEnabled);
 const mergeSoundEnabledInput = ref(props.currentMergeSoundEnabled);
+const customSoundEnabledInput = ref(props.currentCustomSoundEnabled);
+const customPrSoundEnabledInput = ref(props.currentCustomPrSoundEnabled);
 
 watch(
   () => props.open,
@@ -106,9 +112,32 @@ watch(
       prTtsEnabledInput.value = props.currentPrTtsEnabled;
       prSoundEnabledInput.value = props.currentPrSoundEnabled;
       mergeSoundEnabledInput.value = props.currentMergeSoundEnabled;
+      customSoundEnabledInput.value = props.currentCustomSoundEnabled;
+      customPrSoundEnabledInput.value = props.currentCustomPrSoundEnabled;
     }
   },
 );
+
+watch(prTtsEnabledInput, (v) => {
+  if (v) {
+    customPrSoundEnabledInput.value = false;
+  }
+});
+watch(customPrSoundEnabledInput, (v) => {
+  if (v) {
+    prTtsEnabledInput.value = false;
+  }
+});
+watch(ttsEnabledInput, (v) => {
+  if (v) {
+    customSoundEnabledInput.value = false;
+  }
+});
+watch(customSoundEnabledInput, (v) => {
+  if (v) {
+    ttsEnabledInput.value = false;
+  }
+});
 
 const warningOptions = computed(() =>
   SLA_HOUR_OPTIONS.filter((o) => o.value < slaBreachHoursInput.value),
@@ -146,6 +175,8 @@ function handleSave(): void {
     prTtsEnabledInput.value,
     prSoundEnabledInput.value,
     mergeSoundEnabledInput.value,
+    customSoundEnabledInput.value,
+    customPrSoundEnabledInput.value,
   );
 }
 </script>
@@ -368,6 +399,20 @@ function handleSave(): void {
                   <Switch v-model="prTtsEnabledInput" size="sm" />
                 </label>
               </div>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Custom sound</Label>
+                  <Tooltip
+                    text="Looks for a pr_open.mp3 file in a [author]/pulldog-sounds repo"
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="customPrSoundEnabledInput" size="sm" />
+                </label>
+              </div>
             </div>
 
             <div class="border-t border-border" />
@@ -375,6 +420,20 @@ function handleSave(): void {
             <!-- Merge -->
             <div class="space-y-2">
               <p class="font-mono text-[10px] text-muted-foreground">Merge</p>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Confetti</Label>
+                  <Tooltip
+                    text="Show a confetti animation when a PR is merged."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="confettiEnabledInput" size="sm" />
+                </label>
+              </div>
               <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-1.5">
                   <Label>Sound</Label>
@@ -405,16 +464,16 @@ function handleSave(): void {
               </div>
               <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-1.5">
-                  <Label>Confetti</Label>
+                  <Label>Custom sound</Label>
                   <Tooltip
-                    text="Show a confetti animation when a PR is merged."
+                    text="Looks for a pr_merged.mp3 file in a [author]/pulldog-sounds repo"
                     :delay="300"
                   >
                     <Info class="h-3 w-3 cursor-help text-muted-foreground" />
                   </Tooltip>
                 </div>
                 <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="confettiEnabledInput" size="sm" />
+                  <Switch v-model="customSoundEnabledInput" size="sm" />
                 </label>
               </div>
             </div>

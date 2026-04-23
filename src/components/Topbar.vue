@@ -179,7 +179,9 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
     >
       🎉 merge
     </Button>
-    <span class="font-mono text-[10px] text-muted-foreground/40 ml-2">author:</span>
+    <span class="font-mono text-[10px] text-muted-foreground/40 ml-2"
+      >author:</span
+    >
     <input
       v-model="testUsername"
       placeholder="github username"
