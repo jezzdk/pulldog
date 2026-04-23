@@ -45,9 +45,8 @@ export function useAudio(): UseAudioReturn {
     return audioCtx;
   }
 
-  // ── Reception desk bell ──────────────────────────────────────────
-  // Sharp metallic strike transient + clean high-pitched ring that
-  // decays over ~1.5 s.
+  // ── Two-tone ascending chime ─────────────────────────────────────
+  // A4 (440 Hz) followed by E5 (660 Hz), soft doorbell feel, ~0.4 s each.
   async function playNewPR(authorName: string): Promise<void> {
     if (!soundEnabled.value) {
       return;
@@ -58,47 +57,23 @@ export function useAudio(): UseAudioReturn {
         const c = ctx(),
           t = c.currentTime;
 
-        // Strike transient: brief filtered noise burst
-        const bufLen = Math.floor(c.sampleRate * 0.007);
-        const buf = c.createBuffer(1, bufLen, c.sampleRate);
-        const d = buf.getChannelData(0);
-
-        for (let i = 0; i < bufLen; i++) {
-          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 3);
-        }
-
-        const click = c.createBufferSource();
-        const clickGain = c.createGain();
-        const clickFilter = c.createBiquadFilter();
-        clickFilter.type = "highpass";
-        clickFilter.frequency.value = 3000;
-        click.buffer = buf;
-        click.connect(clickFilter);
-        clickFilter.connect(clickGain);
-        clickGain.gain.setValueAtTime(0.35, t);
-        clickGain.connect(c.destination);
-        click.start(t);
-
-        // Bell ring partials — fundamental ~2800 Hz (small metal bell)
-        const partials: [number, number, number][] = [
-          [2800, 0.38, 1.6], // fundamental
-          [5620, 0.14, 0.9], // 2nd harmonic (slightly inharmonic)
-          [8400, 0.05, 0.5], // 3rd
-          [900, 0.04, 1.2], //  body resonance (the "ting" warmth)
+        const tones: [number, number, number][] = [
+          [440, t, 0.4],
+          [660, t + 0.18, 0.4],
         ];
 
-        for (const [freq, vol, decay] of partials) {
+        for (const [freq, start, decay] of tones) {
           const osc = c.createOscillator();
           const gain = c.createGain();
           osc.type = "sine";
-          osc.frequency.setValueAtTime(freq, t);
-          gain.gain.setValueAtTime(0, t);
-          gain.gain.linearRampToValueAtTime(vol, t + 0.004); // instant attack
-          gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(0.3, start + 0.008);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + decay);
           osc.connect(gain);
           gain.connect(c.destination);
-          osc.start(t);
-          osc.stop(t + decay + 0.05);
+          osc.start(start);
+          osc.stop(start + decay + 0.05);
         }
       } catch (_) {
         /* audio not available */
