@@ -60,12 +60,12 @@ export function useAudio(): UseAudioReturn {
     return decoded;
   }
 
-  function playBuffer(buffer: AudioBuffer): void {
+  function playBuffer(buffer: AudioBuffer, maxDuration?: number): void {
     const c = ctx();
     const source = c.createBufferSource();
     source.buffer = buffer;
     source.connect(c.destination);
-    source.start(0);
+    source.start(0, 0, maxDuration);
   }
 
   function ctx(): AudioContext {
@@ -94,7 +94,7 @@ export function useAudio(): UseAudioReturn {
         const buffer = customUrl
           ? await loadBuffer(customUrl).catch(() => loadBuffer(openPrUrl))
           : await loadBuffer(openPrUrl);
-        playBuffer(buffer);
+        playBuffer(buffer, customUrl ? 5 : undefined);
       } catch (_) {
         /* audio not available */
       }
@@ -158,7 +158,7 @@ export function useAudio(): UseAudioReturn {
         const buffer = customUrl
           ? await loadBuffer(customUrl).catch(() => loadBuffer(mergedPrUrl))
           : await loadBuffer(mergedPrUrl);
-        playBuffer(buffer);
+        playBuffer(buffer, customUrl ? 5 : undefined);
       } catch (_) {
         /* merge sound unavailable */
       }
