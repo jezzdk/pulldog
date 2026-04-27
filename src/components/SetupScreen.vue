@@ -117,7 +117,7 @@ onMounted(() => {
           <div
             class="font-mono text-base font-semibold text-foreground tracking-tight"
           >
-            Pulldog 🐕
+            🐕‍🦺 Pulldog
           </div>
           <div class="text-[11px] text-muted-foreground mt-0.5">
             The faithful watchdog for your pull requests
