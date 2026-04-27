@@ -498,26 +498,29 @@ async function loadAll(isRefresh = false): Promise<void> {
         for (const p of fresh) {
           const prevStatus = prev[p.id];
 
-          if (prevStatus === undefined) {
-            // Brand-new PR — only notify for genuinely new open (non-draft) PRs
-            if (p.reviewStatus !== "merged" && !p.draft) {
-              if (!shouldPlayDing) {
-                newPrAuthorName = p.author.login;
-              }
+          const isNewOpenPR =
+            (prevStatus === undefined &&
+              p.reviewStatus !== "merged" &&
+              !p.draft) ||
+            (prevStatus === "draft" && p.reviewStatus !== "draft");
 
-              shouldPlayDing = true;
-              addToast(
-                "new",
-                "🔔",
-                "New pull request",
-                `${repo} #${p.number}: ${p.title}`,
-              );
-              await nextTick();
-              p._flashClass = "flash-new";
-              setTimeout(() => {
-                p._flashClass = "";
-              }, 900);
+          if (isNewOpenPR) {
+            if (!shouldPlayDing) {
+              newPrAuthorName = p.author.login;
             }
+
+            shouldPlayDing = true;
+            addToast(
+              "new",
+              "🔔",
+              "New pull request",
+              `${repo} #${p.number}: ${p.title}`,
+            );
+            await nextTick();
+            p._flashClass = "flash-new";
+            setTimeout(() => {
+              p._flashClass = "";
+            }, 900);
           } else if (prevStatus !== "merged" && p.reviewStatus === "merged") {
             // PR transitioned to merged this poll — play gong
             if (!shouldPlayGong) {
