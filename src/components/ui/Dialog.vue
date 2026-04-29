@@ -18,7 +18,7 @@ defineEmits<{ close: [] }>();
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain p-4"
       >
         <div
           class="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -27,7 +27,7 @@ defineEmits<{ close: [] }>();
         <div
           :class="
             cn(
-              'relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl p-6',
+              'relative z-10 min-h-0 max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto overscroll-y-contain rounded-xl border border-border bg-card p-6 shadow-2xl',
               $props.class,
             )
           "
