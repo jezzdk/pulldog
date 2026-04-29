@@ -351,7 +351,7 @@ function barHeight(count: number, max: number): number {
           <Tooltip
             v-for="a in authorPrCounts"
             :key="a.login"
-            :text="`${a.login} · ${a.count} open PR${a.count !== 1 ? 's' : ''}`"
+            :text="`${a.login} · ${a.count} merged PR${a.count !== 1 ? 's' : ''}`"
             :delay="200"
             side="top"
           >
