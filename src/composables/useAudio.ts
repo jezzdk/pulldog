@@ -30,6 +30,8 @@ const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
 const CUSTOM_SOUND_KEY = "pulldog-custom-sound-enabled";
 const CUSTOM_PR_SOUND_KEY = "pulldog-custom-pr-sound-enabled";
+/** Max playback length for per-author custom MP3s (built-in sounds play full length). */
+const CUSTOM_SOUND_MAX_SEC = 10;
 
 export function useAudio(): UseAudioReturn {
   const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
@@ -94,7 +96,7 @@ export function useAudio(): UseAudioReturn {
         const buffer = customUrl
           ? await loadBuffer(customUrl).catch(() => loadBuffer(openPrUrl))
           : await loadBuffer(openPrUrl);
-        playBuffer(buffer, customUrl ? 5 : undefined);
+        playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
       } catch (_) {
         /* audio not available */
       }
@@ -158,7 +160,7 @@ export function useAudio(): UseAudioReturn {
         const buffer = customUrl
           ? await loadBuffer(customUrl).catch(() => loadBuffer(mergedPrUrl))
           : await loadBuffer(mergedPrUrl);
-        playBuffer(buffer, customUrl ? 5 : undefined);
+        playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
       } catch (_) {
         /* merge sound unavailable */
       }
