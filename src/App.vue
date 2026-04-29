@@ -513,7 +513,7 @@ async function loadAll(isRefresh = false): Promise<void> {
             addToast(
               "new",
               "🔔",
-              "New pull request",
+              `New pull request · ${p.author.login}`,
               `${repo} #${p.number}: ${p.title}`,
             );
             await nextTick();
@@ -531,7 +531,7 @@ async function loadAll(isRefresh = false): Promise<void> {
             addToast(
               "merged",
               "🎉",
-              "PR merged!",
+              `PR merged · ${p.author.login}`,
               `${repo} #${p.number}: ${p.title}`,
             );
           }
