@@ -103,6 +103,10 @@ const knownStatuses = ref<Record<string, Record<number, ReviewStatus>>>({});
 
 // ── stat period ───────────────────────────────────────────────────
 const statPeriod = ref<StatPeriod>("7d");
+// Last completed PR fetch window (matches fetchRepo cutoff). Used so that
+// when the user widens the period, merges that were outside the previous
+// window are not treated as fresh open→merged transitions.
+const lastFetchedStatPeriodMs = ref<number | null>(null);
 
 // ── filters ───────────────────────────────────────────────────────
 const activeFilter = ref("all");
@@ -471,13 +475,79 @@ const anyVisible = computed(() =>
   filteredGroups.value.some((g) => g.prs.length > 0 || g.error !== null),
 );
 
+/** True after the first completed fetch; widening the stat period grows the merged-PR slice. */
+function isMergedPrSliceWiderThanLastFetch(
+  currentFetchPeriodMs: number,
+  lastCompletedFetchPeriodMs: number | null,
+): boolean {
+  return (
+    lastCompletedFetchPeriodMs !== null &&
+    currentFetchPeriodMs > lastCompletedFetchPeriodMs
+  );
+}
+
+/**
+ * When the stat period widens, older merges appear in the payload for the first time.
+ * Those are not live open→merged events relative to the last fetch.
+ */
+function isStaleMergeOnlySeenBecausePeriodWidened(
+  pr: PullRequest,
+  mergedPrSliceWiderThanBefore: boolean,
+  priorFetchPeriodMs: number | null,
+  evaluatedAtMs: number,
+): boolean {
+  return (
+    mergedPrSliceWiderThanBefore &&
+    priorFetchPeriodMs !== null &&
+    pr.mergedAt !== undefined &&
+    pr.mergedAt.getTime() < evaluatedAtMs - priorFetchPeriodMs
+  );
+}
+
+function isNewlyTrackedNonDraftOpenPullRequest(
+  prevStatus: ReviewStatus | undefined,
+  pr: PullRequest,
+): boolean {
+  return (
+    (prevStatus === undefined &&
+      pr.reviewStatus !== "merged" &&
+      !pr.draft) ||
+    (prevStatus === "draft" && pr.reviewStatus !== "draft")
+  );
+}
+
+function shouldAlertMergedPullRequestThisFetch(
+  prevStatus: ReviewStatus | undefined,
+  pr: PullRequest,
+  mergedPrSliceWiderThanBefore: boolean,
+  priorFetchPeriodMs: number | null,
+  evaluatedAtMs: number,
+): boolean {
+  if (prevStatus === "merged" || pr.reviewStatus !== "merged") {
+    return false;
+  }
+
+  return !isStaleMergeOnlySeenBecausePeriodWidened(
+    pr,
+    mergedPrSliceWiderThanBefore,
+    priorFetchPeriodMs,
+    evaluatedAtMs,
+  );
+}
+
 // ── data loading ──────────────────────────────────────────────────
 async function loadAll(isRefresh = false): Promise<void> {
   loading.value = true;
   const periodMs = STAT_PERIOD_MS[statPeriod.value];
+  const priorFetchPeriodMs = lastFetchedStatPeriodMs.value;
+  const mergedPrSliceWiderThanBefore = isMergedPrSliceWiderThanLastFetch(
+    periodMs,
+    priorFetchPeriodMs,
+  );
   const results = await Promise.allSettled(
     repoList.value.map((repo) => fetchRepo(repo, periodMs)),
   );
+  const notificationEvalTimeMs = Date.now();
   let anyOk = false;
   let shouldPlayDing = false;
   let shouldPlayGong = false;
@@ -498,13 +568,7 @@ async function loadAll(isRefresh = false): Promise<void> {
         for (const p of fresh) {
           const prevStatus = prev[p.id];
 
-          const isNewOpenPR =
-            (prevStatus === undefined &&
-              p.reviewStatus !== "merged" &&
-              !p.draft) ||
-            (prevStatus === "draft" && p.reviewStatus !== "draft");
-
-          if (isNewOpenPR) {
+          if (isNewlyTrackedNonDraftOpenPullRequest(prevStatus, p)) {
             if (!shouldPlayDing) {
               newPrAuthorName = p.author.login;
             }
@@ -521,8 +585,15 @@ async function loadAll(isRefresh = false): Promise<void> {
             setTimeout(() => {
               p._flashClass = "";
             }, 900);
-          } else if (prevStatus !== "merged" && p.reviewStatus === "merged") {
-            // PR transitioned to merged this poll — play gong
+          } else if (
+            shouldAlertMergedPullRequestThisFetch(
+              prevStatus,
+              p,
+              mergedPrSliceWiderThanBefore,
+              priorFetchPeriodMs,
+              notificationEvalTimeMs,
+            )
+          ) {
             if (!shouldPlayGong) {
               mergedAuthorName = p.author.login;
             }
@@ -568,6 +639,7 @@ async function loadAll(isRefresh = false): Promise<void> {
     throw new Error(msg);
   }
 
+  lastFetchedStatPeriodMs.value = periodMs;
   loading.value = false;
   lastUpdated.value = new Date().toLocaleTimeString();
 }
@@ -786,6 +858,7 @@ async function handleSaveRepos(newRepos: string[]): Promise<void> {
   saveList(newRepos);
   prData.value = {};
   knownStatuses.value = {};
+  lastFetchedStatPeriodMs.value = null;
   selectedRepos.value = [];
   selectedAuthors.value = [];
   activityByRepo.value = {};
@@ -808,6 +881,7 @@ function handleLogout(): void {
   repoList.value.splice(0);
   prData.value = {};
   knownStatuses.value = {};
+  lastFetchedStatPeriodMs.value = null;
   activityByRepo.value = {};
   activityLoading.value = true;
   selectedRepos.value = [];
