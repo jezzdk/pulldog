@@ -25,6 +25,7 @@ import SettingsDialog from "@/components/SettingsDialog.vue";
 import RepoDialog from "@/components/RepoDialog.vue";
 import SummaryBar from "@/components/SummaryBar.vue";
 import SlaLegend from "@/components/SlaLegend.vue";
+import DayTimeline from "@/components/DayTimeline.vue";
 import Badge from "@/components/ui/Badge.vue";
 import Card from "@/components/ui/Card.vue";
 import Dialog from "@/components/ui/Dialog.vue";
@@ -66,6 +67,13 @@ const { token, hasEnvToken, save: saveToken } = usePersistedToken();
 
 const TITLE_FILTER_KEY = "pulldog-title-filter";
 const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
+
+const TIMELINE_OPEN_KEY = "pulldog-timeline-open";
+const timelineOpen = ref(localStorage.getItem(TIMELINE_OPEN_KEY) === "true");
+function toggleTimeline(): void {
+  timelineOpen.value = !timelineOpen.value;
+  localStorage.setItem(TIMELINE_OPEN_KEY, String(timelineOpen.value));
+}
 
 const HIDE_DRAFTS_IN_ALL_KEY = "pulldog-hide-drafts-in-all";
 const HIDE_MERGED_IN_ALL_KEY = "pulldog-hide-merged-in-all";
@@ -991,6 +999,8 @@ onMounted(async () => {
       :repo-options="repoOptions"
       :author-options="authorOptions"
       :author-avatars="authorAvatars"
+      :timeline-open="timelineOpen"
+      @toggle-timeline="toggleTimeline"
     />
 
     <SummaryBar
@@ -1046,6 +1056,9 @@ onMounted(async () => {
           </div>
           <SlaLegend />
         </div>
+
+        <!-- Day timeline -->
+        <DayTimeline v-if="timelineOpen" :prs="allPRs" />
 
         <!-- Unified PR table -->
         <PrTable

@@ -26,6 +26,7 @@ defineProps<{
   authorAvatars: Record<string, string>;
   selectedRepos: string[];
   selectedAuthors: string[];
+  timelineOpen: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   "update:searchQ": [value: string];
   "update:selectedRepos": [value: string[]];
   "update:selectedAuthors": [value: string[]];
+  "toggle-timeline": [];
 }>();
 </script>
 
@@ -77,6 +79,21 @@ const emit = defineEmits<{
       :selected="selectedAuthors"
       @update:selected="emit('update:selectedAuthors', $event)"
     />
+
+    <div class="h-4 w-px bg-border mx-1" />
+
+    <!-- Timeline toggle -->
+    <button
+      @click="emit('toggle-timeline')"
+      class="rounded-full border px-3 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap"
+      :class="
+        timelineOpen
+          ? 'border-primary/50 bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground'
+      "
+    >
+      Timeline
+    </button>
 
     <!-- Search -->
     <Input
