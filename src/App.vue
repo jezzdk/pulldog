@@ -327,19 +327,19 @@ const assigneePrCounts = computed(() => {
 });
 
 const statOpen = computed(
-  () => allPRs.value.filter((p) => p.reviewStatus === "open").length,
+  () => baseFilteredPRs.value.filter((p) => p.reviewStatus === "open").length,
 );
 const statApproved = computed(
-  () => allPRs.value.filter((p) => p.reviewStatus === "approved").length,
+  () => baseFilteredPRs.value.filter((p) => p.reviewStatus === "approved").length,
 );
 const statWarn = computed(
   () =>
-    allPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "warning")
+    baseFilteredPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "warning")
       .length,
 );
 const statBreach = computed(
   () =>
-    allPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "breach")
+    baseFilteredPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "breach")
       .length,
 );
 
