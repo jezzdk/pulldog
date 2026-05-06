@@ -68,7 +68,7 @@ const events = computed<TlEvent[]>(() => {
         type: "opened",
         avatar: pr.author.avatar_url + "&s=48",
         login: pr.author.login,
-        tooltip: `#${pr.number} opened by ${pr.author.login} at ${timeLabel(pr.createdAt)}`,
+        tooltip: `${pr.repo}#${pr.number} opened by ${pr.author.login} at ${timeLabel(pr.createdAt)}`,
       });
     }
     if (pr.mergedAt) {
@@ -79,7 +79,7 @@ const events = computed<TlEvent[]>(() => {
           type: "merged",
           avatar: pr.author.avatar_url + "&s=48",
           login: pr.author.login,
-          tooltip: `#${pr.number} merged by ${pr.author.login} at ${timeLabel(pr.mergedAt)}`,
+          tooltip: `${pr.repo}#${pr.number} merged by ${pr.author.login} at ${timeLabel(pr.mergedAt)}`,
         });
       }
     }
