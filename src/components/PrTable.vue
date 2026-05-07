@@ -13,19 +13,31 @@ const props = defineProps<{
   showRepo?: boolean;
 }>();
 
-type SortKey =
-  | "pr"
-  | "repo"
-  | "author"
-  | "assignee"
-  | "reviewers"
-  | "comments"
-  | "age"
-  | "sla";
-type SortDir = "asc" | "desc";
+const SORT_KEY_STORAGE_KEY = "pulldog-pr-table-sort-key";
+const SORT_DIR_STORAGE_KEY = "pulldog-pr-table-sort-dir";
+const SORT_KEYS = [
+  "pr",
+  "repo",
+  "author",
+  "assignee",
+  "reviewers",
+  "comments",
+  "age",
+  "sla",
+] as const;
+const SORT_DIRS = ["asc", "desc"] as const;
 
-const sortKey = ref<SortKey>("age");
-const sortDir = ref<SortDir>("asc");
+type SortKey = (typeof SORT_KEYS)[number];
+type SortDir = (typeof SORT_DIRS)[number];
+
+const storedSortKey = localStorage.getItem(SORT_KEY_STORAGE_KEY) as SortKey;
+const storedSortDir = localStorage.getItem(SORT_DIR_STORAGE_KEY) as SortDir;
+const sortKey = ref<SortKey>(
+  SORT_KEYS.includes(storedSortKey) ? storedSortKey : "age",
+);
+const sortDir = ref<SortDir>(
+  SORT_DIRS.includes(storedSortDir) ? storedSortDir : "asc",
+);
 
 function toggleSort(key: SortKey): void {
   if (sortKey.value === key) {
@@ -34,6 +46,9 @@ function toggleSort(key: SortKey): void {
     sortKey.value = key;
     sortDir.value = "asc";
   }
+
+  localStorage.setItem(SORT_KEY_STORAGE_KEY, sortKey.value);
+  localStorage.setItem(SORT_DIR_STORAGE_KEY, sortDir.value);
 }
 
 function sortValue(pr: PullRequest, key: SortKey): string | number {
