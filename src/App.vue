@@ -1062,7 +1062,12 @@ onMounted(async () => {
         </div>
 
         <!-- Day timeline -->
-        <DayTimeline v-if="timelineOpen" :prs="allPRs" />
+        <DayTimeline
+          v-if="timelineOpen"
+          :prs="allPRs"
+          @play-opened-sound="playNewPR"
+          @play-merged-sound="playMerged"
+        />
 
         <!-- Unified PR table -->
         <PrTable

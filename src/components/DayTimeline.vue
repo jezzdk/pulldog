@@ -4,6 +4,10 @@ import type { PullRequest } from "@/types";
 import Tooltip from "@/components/ui/Tooltip.vue";
 
 const props = defineProps<{ prs: PullRequest[] }>();
+const emit = defineEmits<{
+  "play-opened-sound": [login: string];
+  "play-merged-sound": [login: string];
+}>();
 
 const now = ref(new Date());
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -13,7 +17,9 @@ onMounted(() => {
   }, 60_000);
 });
 onUnmounted(() => {
-  if (timer) clearInterval(timer);
+  if (timer) {
+    clearInterval(timer);
+  }
 });
 
 // x-axis: midnight → midnight (local calendar day)
@@ -34,7 +40,10 @@ const TICK_HOURS = [0, 3, 6, 9, 12, 15, 18, 21, 24] as const;
 const LABEL_HOURS = new Set([3, 6, 9, 12, 15, 18, 21]);
 
 function hourLabel(h: number): string {
-  if (h === 12) return "12pm";
+  if (h === 12) {
+    return "12pm";
+  }
+
   return h < 12 ? `${h}am` : `${h - 12}pm`;
 }
 
@@ -62,6 +71,7 @@ const events = computed<TlEvent[]>(() => {
 
   for (const pr of props.prs) {
     const openedMs = pr.createdAt.getTime();
+
     if (openedMs >= start && openedMs < end) {
       raw.push({
         pct: toPct(pr.createdAt),
@@ -71,8 +81,10 @@ const events = computed<TlEvent[]>(() => {
         tooltip: `${pr.repo}#${pr.number} opened by ${pr.author.login} at ${timeLabel(pr.createdAt)}`,
       });
     }
+
     if (pr.mergedAt) {
       const mergedMs = pr.mergedAt.getTime();
+
       if (mergedMs >= start && mergedMs < end) {
         raw.push({
           pct: toPct(pr.mergedAt),
@@ -94,6 +106,15 @@ const TRACK_BOTTOM = 22;
 const AVATAR_SIZE = 16;
 const ROW_HEIGHT = 24;
 const CONTAINER_HEIGHT = 100;
+
+function playEventSound(event: TlEvent): void {
+  if (event.type === "merged") {
+    emit("play-merged-sound", event.login);
+    return;
+  }
+
+  emit("play-opened-sound", event.login);
+}
 </script>
 
 <template>
@@ -165,10 +186,12 @@ const CONTAINER_HEIGHT = 100;
         }"
       >
         <Tooltip :text="ev.tooltip">
-          <div
+          <button
+            type="button"
             class="rounded-full overflow-hidden ring-2 ring-offset-1 ring-offset-card"
             :class="ev.type === 'opened' ? 'ring-blue-500' : 'ring-purple-500'"
             :style="{ width: `${AVATAR_SIZE}px`, height: `${AVATAR_SIZE}px` }"
+            @click="playEventSound(ev)"
           >
             <img
               :src="ev.avatar"
@@ -176,7 +199,7 @@ const CONTAINER_HEIGHT = 100;
               loading="lazy"
               class="h-full w-full object-cover"
             />
-          </div>
+          </button>
         </Tooltip>
       </div>
     </template>
