@@ -185,7 +185,7 @@ function barHeight(count: number, max: number): number {
     <!-- Open PRs -->
     <div class="py-4 pr-8 shrink-0">
       <div
-        class="font-mono text-2xl font-bold tracking-tight text-foreground leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight text-foreground"
       >
         <span
           v-if="loading && totalOpen === 0"
@@ -216,7 +216,7 @@ function barHeight(count: number, max: number): number {
       @keydown.space.prevent="$emit('testOpenedSound')"
     >
       <div
-        class="font-mono text-2xl font-bold tracking-tight text-foreground leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight text-foreground"
       >
         <span
           v-if="createdInPeriod === null && loading"
@@ -247,7 +247,7 @@ function barHeight(count: number, max: number): number {
       @keydown.space.prevent="$emit('testMergedSound')"
     >
       <div
-        class="font-mono text-2xl font-bold tracking-tight text-purple-400 leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight text-purple-400"
       >
         <span
           v-if="mergedInPeriod === null && loading"
@@ -270,7 +270,7 @@ function barHeight(count: number, max: number): number {
     <!-- Throughput -->
     <div class="py-4 pr-8 shrink-0">
       <div
-        class="font-mono text-2xl font-bold tracking-tight leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="throughputClass"
       >
         <Tooltip :text="throughputTooltip" side="bottom">
@@ -296,7 +296,7 @@ function barHeight(count: number, max: number): number {
     <!-- Avg lead time -->
     <div class="py-4 pr-8 shrink-0">
       <div
-        class="font-mono text-2xl font-bold tracking-tight leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="leadClass"
       >
         <span
@@ -320,7 +320,7 @@ function barHeight(count: number, max: number): number {
     <!-- Avg time to review -->
     <div class="py-4 pr-8 shrink-0">
       <div
-        class="font-mono text-2xl font-bold tracking-tight leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="timeClass(avgTimeToReviewHours)"
       >
         <span
@@ -344,7 +344,7 @@ function barHeight(count: number, max: number): number {
     <!-- Avg time to merge -->
     <div class="py-4 pr-8 shrink-0">
       <div
-        class="font-mono text-2xl font-bold tracking-tight leading-none mb-1"
+        class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="timeClass(avgTimeToMergeHours)"
       >
         <span
