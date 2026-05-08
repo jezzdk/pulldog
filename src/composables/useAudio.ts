@@ -21,6 +21,8 @@ interface UseAudioReturn {
   toggleCustomPrSound: () => void;
   playNewPR: (authorName: string) => Promise<void>;
   playMerged: (authorName: string) => Promise<void>;
+  playDefaultNewPR: () => Promise<void>;
+  playDefaultMerged: () => Promise<void>;
 }
 
 const STORAGE_KEY = "pulldog-sound";
@@ -68,6 +70,23 @@ export function useAudio(): UseAudioReturn {
     source.buffer = buffer;
     source.connect(c.destination);
     source.start(0, 0, maxDuration);
+  }
+
+  async function playDefaultSound(url: string): Promise<void> {
+    try {
+      const buffer = await loadBuffer(url);
+      playBuffer(buffer);
+    } catch (_) {
+      /* audio not available */
+    }
+  }
+
+  function playDefaultNewPR(): Promise<void> {
+    return playDefaultSound(openPrUrl);
+  }
+
+  function playDefaultMerged(): Promise<void> {
+    return playDefaultSound(mergedPrUrl);
   }
 
   function ctx(): AudioContext {
@@ -273,5 +292,7 @@ export function useAudio(): UseAudioReturn {
     toggleCustomPrSound,
     playNewPR,
     playMerged,
+    playDefaultNewPR,
+    playDefaultMerged,
   } as UseAudioReturn;
 }

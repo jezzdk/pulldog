@@ -46,7 +46,11 @@ const props = withDefaults(
   },
 );
 
-defineEmits<{ "update:period": [value: StatPeriod] }>();
+defineEmits<{
+  "update:period": [value: StatPeriod];
+  testOpenedSound: [];
+  testMergedSound: [];
+}>();
 
 const TOOLTIPS = {
   openPRs:
@@ -202,7 +206,15 @@ function barHeight(count: number, max: number): number {
     <div class="h-10 w-px bg-border shrink-0 mr-8" />
 
     <!-- Created -->
-    <div class="py-4 pr-8 shrink-0">
+    <div
+      role="button"
+      tabindex="0"
+      class="py-4 pr-8 shrink-0 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      aria-label="Play opened PR sound"
+      @click="$emit('testOpenedSound')"
+      @keydown.enter="$emit('testOpenedSound')"
+      @keydown.space.prevent="$emit('testOpenedSound')"
+    >
       <div
         class="font-mono text-2xl font-bold tracking-tight text-foreground leading-none mb-1"
       >
@@ -225,7 +237,15 @@ function barHeight(count: number, max: number): number {
     <div class="h-10 w-px bg-border shrink-0 mr-8" />
 
     <!-- Merged -->
-    <div class="py-4 pr-8 shrink-0">
+    <div
+      role="button"
+      tabindex="0"
+      class="py-4 pr-8 shrink-0 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      aria-label="Play merged PR sound"
+      @click="$emit('testMergedSound')"
+      @keydown.enter="$emit('testMergedSound')"
+      @keydown.space.prevent="$emit('testMergedSound')"
+    >
       <div
         class="font-mono text-2xl font-bold tracking-tight text-purple-400 leading-none mb-1"
       >

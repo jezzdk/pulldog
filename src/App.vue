@@ -172,6 +172,8 @@ const {
   toggle: toggleSound,
   playNewPR,
   playMerged,
+  playDefaultNewPR,
+  playDefaultMerged,
 } = useAudio();
 
 const testAuthors = [
@@ -1014,6 +1016,8 @@ onMounted(async () => {
       :assignee-pr-counts="assigneePrCounts"
       :loading="activityLoading"
       v-model:period="statPeriod"
+      @test-opened-sound="playDefaultNewPR"
+      @test-merged-sound="playDefaultMerged"
     />
 
     <!-- PR groups -->
