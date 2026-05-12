@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { useGithubOAuth, TOKEN_SOURCE_KEY } from "@/composables/useGithubOAuth";
 import { useAudio } from "@/composables/useAudio";
 import { useGithub } from "@/composables/useGithub";
+import { usePollingTimer } from "@/composables/usePollingTimer";
+import { useRateLimitPause } from "@/composables/useRateLimitPause";
 import {
   slaStatus,
   slaWarningHours,
@@ -19,6 +21,8 @@ import type { PullRequest, ReviewStatus, Toast, FilteredGroup } from "@/types";
 
 import SetupScreen from "@/components/SetupScreen.vue";
 import Topbar from "@/components/Topbar.vue";
+import RateLimitBanner from "@/components/RateLimitBanner.vue";
+import RateLimitFooter from "@/components/RateLimitFooter.vue";
 import FilterBar from "@/components/FilterBar.vue";
 import PrTable from "@/components/PrTable.vue";
 import SettingsDialog from "@/components/SettingsDialog.vue";
@@ -226,7 +230,12 @@ const {
   fetchRecentActivity,
   fetchReviewStats,
   fetchAvailableRepos,
+  rateLimit,
 } = useGithub(tokenComputed, compiledTitleFilter);
+const rateLimitPause = useRateLimitPause(rateLimit);
+const summaryLoading = computed(
+  () => activityLoading.value && !rateLimitPause.isPaused.value,
+);
 
 // ── computed stats ────────────────────────────────────────────────
 const allPRs = computed<PullRequest[]>(() =>
@@ -547,6 +556,10 @@ function shouldAlertMergedPullRequestThisFetch(
 
 // ── data loading ──────────────────────────────────────────────────
 async function loadAll(isRefresh = false): Promise<void> {
+  if (rateLimitPause.sync() > 0) {
+    return;
+  }
+
   loading.value = true;
   const periodMs = STAT_PERIOD_MS[statPeriod.value];
   const priorFetchPeriodMs = lastFetchedStatPeriodMs.value;
@@ -655,6 +668,11 @@ async function loadAll(isRefresh = false): Promise<void> {
 }
 
 async function loadActivity(): Promise<void> {
+  if (rateLimitPause.sync() > 0) {
+    activityLoading.value = false;
+    return;
+  }
+
   activityLoading.value = true;
   activityByRepo.value = {};
   const periodMs = STAT_PERIOD_MS[statPeriod.value];
@@ -693,10 +711,27 @@ async function loadActivity(): Promise<void> {
 
 watch(statPeriod, () => {
   if (connected.value) {
-    void loadAll(true);
-    void loadActivity();
+    void refreshData(true);
   }
 });
+
+async function refreshData(isRefresh = true): Promise<void> {
+  await loadAll(isRefresh);
+
+  if (rateLimitPause.sync() === 0) {
+    void loadActivity();
+  }
+}
+
+const polling = usePollingTimer(
+  pollIntervalS,
+  () => {
+    if (connected.value && !loading.value) {
+      void refreshData(true);
+    }
+  },
+  rateLimitPause.sync,
+);
 
 async function resetToken(): Promise<void> {
   await oauth.revokeToken(token.value);
@@ -729,9 +764,13 @@ async function connect(newRepos: string[], newToken?: string): Promise<void> {
 
   try {
     await loadAll(false);
-    void loadActivity();
+
+    if (rateLimitPause.sync() === 0) {
+      void loadActivity();
+    }
+
     connected.value = true;
-    startPolling();
+    polling.start();
   } catch (e) {
     setupError.value = e instanceof Error ? e.message : "Unknown error";
   }
@@ -741,9 +780,17 @@ async function connect(newRepos: string[], newToken?: string): Promise<void> {
 
 async function refreshAll(): Promise<void> {
   if (!loading.value) {
-    startPolling();
+    polling.start();
+
+    if (rateLimitPause.sync() > 0) {
+      return;
+    }
+
     await loadAll(true);
-    void loadActivity();
+
+    if (rateLimitPause.sync() === 0) {
+      void loadActivity();
+    }
   }
 }
 
@@ -787,7 +834,7 @@ function handleSaveSettings(
   ) {
     pollIntervalS.value = newPollInterval;
     localStorage.setItem(POLL_INTERVAL_KEY, String(newPollInterval));
-    startPolling();
+    polling.start();
   }
 
   if (newSlaWarningHours !== undefined) {
@@ -874,15 +921,26 @@ async function handleSaveRepos(newRepos: string[]): Promise<void> {
   activityByRepo.value = {};
   activityLoading.value = true;
   await loadAll(false);
-  void loadActivity();
-  startPolling();
+
+  if (rateLimitPause.sync() === 0) {
+    void loadActivity();
+  }
+
+  polling.start();
 }
 
+watch(
+  rateLimit,
+  () => {
+    if (connected.value && rateLimitPause.sync() > 0) {
+      polling.start();
+    }
+  },
+  { deep: true },
+);
+
 function handleLogout(): void {
-  if (pollTimer !== null) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
+  polling.stop();
 
   localStorage.removeItem(REPOS_KEY);
   localStorage.removeItem(TOKEN_KEY);
@@ -898,45 +956,10 @@ function handleLogout(): void {
   selectedAuthors.value = [];
   activeFilter.value = "all";
   searchQ.value = "";
+  rateLimitPause.clear();
   showLogoutConfirm.value = false;
   connected.value = false;
 }
-
-const pollCountdown = ref(pollIntervalS.value);
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-let countdownTimer: ReturnType<typeof setInterval> | null = null;
-
-function startPolling(): void {
-  if (pollTimer !== null) {
-    clearInterval(pollTimer);
-  }
-
-  if (countdownTimer !== null) {
-    clearInterval(countdownTimer);
-  }
-
-  pollCountdown.value = pollIntervalS.value;
-
-  pollTimer = setInterval(() => {
-    pollCountdown.value = pollIntervalS.value;
-    void loadAll(true);
-    void loadActivity();
-  }, pollIntervalS.value * 1_000);
-
-  countdownTimer = setInterval(() => {
-    pollCountdown.value = Math.max(0, pollCountdown.value - 1);
-  }, 1_000);
-}
-
-onUnmounted(() => {
-  if (pollTimer !== null) {
-    clearInterval(pollTimer);
-  }
-
-  if (countdownTimer !== null) {
-    clearInterval(countdownTimer);
-  }
-});
 
 onMounted(async () => {
   const callbackToken = await oauth.handleCallback();
@@ -980,7 +1003,8 @@ onMounted(async () => {
       :confetti-enabled="confettiEnabled"
       :loading="loading"
       :last-updated="lastUpdated"
-      :poll-countdown="pollCountdown"
+      :poll-countdown="polling.countdown.value"
+      :rate-limit-paused="rateLimitPause.isPaused.value"
       :test-mode="TEST_MODE"
       :has-env-token="hasEnvToken"
       :on-test-new-pr="playNewPRTest"
@@ -991,6 +1015,11 @@ onMounted(async () => {
       @open-repos="showRepos = true"
       @open-settings="showSettings = true"
       @logout="showLogoutConfirm = true"
+    />
+
+    <RateLimitBanner
+      :paused="rateLimitPause.isPaused.value"
+      :rate-limit="rateLimit"
     />
 
     <FilterBar
@@ -1014,7 +1043,7 @@ onMounted(async () => {
       :avg-time-to-merge-hours="filteredActivity.avgTimeToMergeHours"
       :author-pr-counts="authorPrCounts"
       :assignee-pr-counts="assigneePrCounts"
-      :loading="activityLoading"
+      :loading="summaryLoading"
       v-model:period="statPeriod"
       @test-opened-sound="playDefaultNewPR"
       @test-merged-sound="playDefaultMerged"
@@ -1093,9 +1122,12 @@ onMounted(async () => {
     </main>
 
     <footer
-      class="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground text-right"
+      class="flex items-center justify-between gap-4 border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground"
     >
-      Pulldog · The faithful watchdog for your pull requests
+      <RateLimitFooter :rate-limit="rateLimit" />
+      <span class="text-right">
+        Pulldog · The faithful watchdog for your pull requests
+      </span>
     </footer>
 
     <!-- Toasts -->

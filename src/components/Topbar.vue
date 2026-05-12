@@ -28,6 +28,7 @@ defineProps<{
   loading: boolean;
   lastUpdated: string;
   pollCountdown: number;
+  rateLimitPaused: boolean;
   testMode: boolean;
   hasEnvToken: boolean;
   onTestNewPr: () => void;
@@ -86,11 +87,12 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       <Button
         variant="outline"
         size="sm"
-        :class="loading ? 'opacity-60' : ''"
+        :class="loading || rateLimitPaused ? 'opacity-60' : ''"
+        :disabled="rateLimitPaused"
         @click="$emit('refresh')"
       >
         <RefreshCw class="h-3.5 w-3.5" :class="loading ? 'animate-spin' : ''" />
-        Refresh ({{ pollCountdown }}s)
+        {{ rateLimitPaused ? "Paused" : "Refresh" }} ({{ pollCountdown }}s)
       </Button>
 
       <Button

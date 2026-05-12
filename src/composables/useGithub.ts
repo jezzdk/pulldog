@@ -1,4 +1,5 @@
 // composables/useGithub.ts
+import { readonly, ref } from "vue";
 import type { ComputedRef } from "vue";
 import type { PullRequest, ReviewStatus } from "@/types";
 
@@ -48,12 +49,55 @@ export interface ReviewStatsMetrics {
   mergedWithApprovalCount: number;
 }
 
+export interface GithubRateLimit {
+  limit: number | null;
+  used: number | null;
+  remaining: number | null;
+  reset: Date | null;
+}
+
 export function useGithub(
   token: ComputedRef<string>,
   titleFilter: ComputedRef<RegExp | null> = {
     value: null,
   } as ComputedRef<RegExp | null>,
 ) {
+  const rateLimit = ref<GithubRateLimit | null>(null);
+
+  function headerNumber(headers: Headers, name: string): number | null {
+    const value = headers.get(name);
+
+    if (value === null) {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function captureRateLimit(headers: Headers): void {
+    const limit = headerNumber(headers, "x-ratelimit-limit");
+    const used = headerNumber(headers, "x-ratelimit-used");
+    const remaining = headerNumber(headers, "x-ratelimit-remaining");
+    const resetSeconds = headerNumber(headers, "x-ratelimit-reset");
+
+    if (
+      limit === null &&
+      used === null &&
+      remaining === null &&
+      resetSeconds === null
+    ) {
+      return;
+    }
+
+    rateLimit.value = {
+      limit,
+      used,
+      remaining,
+      reset: resetSeconds === null ? null : new Date(resetSeconds * 1_000),
+    };
+  }
+
   async function gh<T>(path: string, overrideToken?: string): Promise<T> {
     const tok = overrideToken ?? token.value;
     const r = await fetch(`https://api.github.com${path}`, {
@@ -62,6 +106,8 @@ export function useGithub(
         Accept: "application/vnd.github+json",
       },
     });
+
+    captureRateLimit(r.headers);
 
     if (!r.ok) {
       const b = (await r
@@ -467,5 +513,6 @@ export function useGithub(
     fetchRecentActivity,
     fetchReviewStats,
     fetchAvailableRepos,
+    rateLimit: readonly(rateLimit),
   };
 }
