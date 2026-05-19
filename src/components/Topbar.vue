@@ -56,7 +56,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       <div
         class="flex items-center gap-2 font-mono text-base font-semibold text-foreground"
       >
-        🐕‍🦺 Pulldog
+        🐕 Pulldog
       </div>
       <div class="hidden sm:flex items-center gap-1.5">
         <Badge variant="default">{{ statOpen }} open</Badge>
