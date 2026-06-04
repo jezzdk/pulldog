@@ -81,12 +81,16 @@ function toggleTimeline(): void {
 
 const HIDE_DRAFTS_IN_ALL_KEY = "pulldog-hide-drafts-in-all";
 const HIDE_MERGED_IN_ALL_KEY = "pulldog-hide-merged-in-all";
+const HIDE_CLOSED_IN_ALL_KEY = "pulldog-hide-closed-in-all";
 const CONFETTI_ENABLED_KEY = "pulldog-confetti-enabled";
 const hideDraftsInAll = ref(
   localStorage.getItem(HIDE_DRAFTS_IN_ALL_KEY) === "true",
 );
 const hideMergedInAll = ref(
   localStorage.getItem(HIDE_MERGED_IN_ALL_KEY) === "true",
+);
+const hideClosedInAll = ref(
+  localStorage.getItem(HIDE_CLOSED_IN_ALL_KEY) === "true",
 );
 const confettiEnabled = ref(
   localStorage.getItem(CONFETTI_ENABLED_KEY) === "true",
@@ -484,7 +488,8 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
         prs = prs.filter(
           (p) =>
             (!hideDraftsInAll.value || p.reviewStatus !== "draft") &&
-            (!hideMergedInAll.value || p.reviewStatus !== "merged"),
+            (!hideMergedInAll.value || p.reviewStatus !== "merged") &&
+            (!hideClosedInAll.value || p.reviewStatus !== "closed"),
         );
       }
 
@@ -894,6 +899,7 @@ function handleSaveSettings(
   newCommentFireThreshold?: number,
   newHideDraftsInAll?: boolean,
   newHideMergedInAll?: boolean,
+  newHideClosedInAll?: boolean,
   newConfettiEnabled?: boolean,
   newTtsEnabled?: boolean,
   newPrTtsEnabled?: boolean,
@@ -956,6 +962,11 @@ function handleSaveSettings(
   if (newHideMergedInAll !== undefined) {
     hideMergedInAll.value = newHideMergedInAll;
     localStorage.setItem(HIDE_MERGED_IN_ALL_KEY, String(newHideMergedInAll));
+  }
+
+  if (newHideClosedInAll !== undefined) {
+    hideClosedInAll.value = newHideClosedInAll;
+    localStorage.setItem(HIDE_CLOSED_IN_ALL_KEY, String(newHideClosedInAll));
   }
 
   if (newConfettiEnabled !== undefined) {
@@ -1324,6 +1335,7 @@ onMounted(async () => {
       :current-comment-fire-threshold="commentFireThreshold"
       :current-hide-drafts-in-all="hideDraftsInAll"
       :current-hide-merged-in-all="hideMergedInAll"
+      :current-hide-closed-in-all="hideClosedInAll"
       :current-confetti-enabled="confettiEnabled"
       :current-tts-enabled="ttsEnabled"
       :current-pr-tts-enabled="prTtsEnabled"

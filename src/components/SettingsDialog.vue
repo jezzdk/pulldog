@@ -44,6 +44,7 @@ const props = defineProps<{
   currentCommentFireThreshold: number;
   currentHideDraftsInAll: boolean;
   currentHideMergedInAll: boolean;
+  currentHideClosedInAll: boolean;
   currentConfettiEnabled: boolean;
   currentTtsEnabled: boolean;
   currentPrTtsEnabled: boolean;
@@ -67,6 +68,7 @@ const emit = defineEmits<{
     commentFireThreshold?: number,
     hideDraftsInAll?: boolean,
     hideMergedInAll?: boolean,
+    hideClosedInAll?: boolean,
     confettiEnabled?: boolean,
     ttsEnabled?: boolean,
     prTtsEnabled?: boolean,
@@ -89,6 +91,7 @@ const commentFireThresholdInput = ref(
 );
 const hideDraftsInAllInput = ref(props.currentHideDraftsInAll);
 const hideMergedInAllInput = ref(props.currentHideMergedInAll);
+const hideClosedInAllInput = ref(props.currentHideClosedInAll);
 const confettiEnabledInput = ref(props.currentConfettiEnabled);
 const ttsEnabledInput = ref(props.currentTtsEnabled);
 const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
@@ -115,6 +118,7 @@ watch(
       );
       hideDraftsInAllInput.value = props.currentHideDraftsInAll;
       hideMergedInAllInput.value = props.currentHideMergedInAll;
+      hideClosedInAllInput.value = props.currentHideClosedInAll;
       confettiEnabledInput.value = props.currentConfettiEnabled;
       ttsEnabledInput.value = props.currentTtsEnabled;
       prTtsEnabledInput.value = props.currentPrTtsEnabled;
@@ -181,6 +185,7 @@ function handleSave(): void {
     Number(commentFireThresholdInput.value),
     hideDraftsInAllInput.value,
     hideMergedInAllInput.value,
+    hideClosedInAllInput.value,
     confettiEnabledInput.value,
     ttsEnabledInput.value,
     prTtsEnabledInput.value,
@@ -343,6 +348,20 @@ function handleSave(): void {
               </div>
               <label class="flex w-40 cursor-pointer items-center">
                 <Switch v-model="hideMergedInAllInput" size="sm" />
+              </label>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>Hide Closed</Label>
+                <Tooltip
+                  text='Hide closed (not merged) PRs when the "All" filter is active.'
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <label class="flex w-40 cursor-pointer items-center">
+                <Switch v-model="hideClosedInAllInput" size="sm" />
               </label>
             </div>
             <div class="flex items-center justify-between gap-3">
