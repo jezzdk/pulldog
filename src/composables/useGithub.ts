@@ -26,6 +26,7 @@ interface GithubRawPR {
   state: string;
   draft: boolean;
   created_at: string;
+  updated_at: string;
   merged_at: string | null;
   user: { login: string; avatar_url: string };
   assignees: Array<{ login: string; avatar_url: string }>;
@@ -64,6 +65,52 @@ export function useGithub(
 ) {
   const rateLimit = ref<GithubRateLimit | null>(null);
 
+  // ── caches (persist for the composable lifetime) ──────────────────
+  // ETag cache: GitHub returns 304 Not Modified for unchanged resources,
+  // and 304 responses do NOT count against the rate limit. Keyed by token
+  // + path so a token swap (re-login) never serves another user's data.
+  const etagCache = new Map<string, { etag: string; data: unknown }>();
+
+  // Per-PR enrichment caches keyed by PR id. We only refetch a PR's reviews
+  // or detail when its `updated_at` advances — unchanged PRs cost no request
+  // at all (not even a conditional one), which is the dominant saving on a
+  // busy repo where most open PRs are untouched between polls.
+  const reviewsCache = new Map<
+    number,
+    { updatedAt: string; reviews: GithubReview[] }
+  >();
+  const detailCache = new Map<
+    number,
+    { updatedAt: string; comments: number; review_comments: number }
+  >();
+
+  // Cache-tracing. Enable in the browser console with:
+  //   localStorage.setItem("pulldog-debug-cache", "1")  // then reload
+  // Disable with localStorage.removeItem("pulldog-debug-cache").
+  const debugCache =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("pulldog-debug-cache") === "1";
+
+  function logCache(
+    kind: "etag" | "reviews" | "detail",
+    hit: boolean,
+    label: string,
+  ): void {
+    if (!debugCache) {
+      return;
+    }
+
+    const tag = hit ? "HIT " : "MISS";
+    const color = hit ? "color:#16a34a" : "color:#dc2626";
+    // eslint-disable-next-line no-console
+    console.debug(
+      `%c[cache ${tag}] %c${kind}%c ${label}`,
+      color,
+      "color:#888",
+      "",
+    );
+  }
+
   function headerNumber(headers: Headers, name: string): number | null {
     const value = headers.get(name);
 
@@ -100,14 +147,33 @@ export function useGithub(
 
   async function gh<T>(path: string, overrideToken?: string): Promise<T> {
     const tok = overrideToken ?? token.value;
-    const r = await fetch(`https://api.github.com${path}`, {
-      headers: {
-        Authorization: `token ${tok}`,
-        Accept: "application/vnd.github+json",
-      },
-    });
+    const cacheKey = `${tok}:${path}`;
+    const cached = etagCache.get(cacheKey);
+
+    const headers: Record<string, string> = {
+      Authorization: `token ${tok}`,
+      Accept: "application/vnd.github+json",
+    };
+
+    if (cached) {
+      headers["If-None-Match"] = cached.etag;
+    }
+
+    const r = await fetch(`https://api.github.com${path}`, { headers });
 
     captureRateLimit(r.headers);
+
+    // Unchanged since last fetch — serve from cache. 304s are free (they do
+    // not decrement the rate limit), which is the whole point of sending the
+    // conditional request.
+    if (r.status === 304 && cached) {
+      logCache("etag", true, `304 ${path}`);
+      return cached.data as T;
+    }
+
+    if (cached) {
+      logCache("etag", false, `${r.status} ${path}`);
+    }
 
     if (!r.ok) {
       const b = (await r
@@ -116,7 +182,60 @@ export function useGithub(
       throw new Error(`GitHub ${r.status}: ${b.message ?? "error"}`);
     }
 
-    return r.json() as Promise<T>;
+    const data = (await r.json()) as T;
+    const etag = r.headers.get("etag");
+
+    if (etag) {
+      etagCache.set(cacheKey, { etag, data });
+    }
+
+    return data;
+  }
+
+  // Reviews for a PR, refetched only when its `updated_at` changes.
+  async function ghReviews(
+    owner: string,
+    repo: string,
+    pr: GithubRawPR,
+  ): Promise<GithubReview[]> {
+    const hit = reviewsCache.get(pr.id);
+
+    if (hit && hit.updatedAt === pr.updated_at) {
+      logCache("reviews", true, `${repo}#${pr.number}`);
+      return hit.reviews;
+    }
+
+    logCache("reviews", false, `${repo}#${pr.number}`);
+    const reviews = await gh<GithubReview[]>(
+      `/repos/${owner}/${repo}/pulls/${pr.number}/reviews`,
+    );
+    reviewsCache.set(pr.id, { updatedAt: pr.updated_at, reviews });
+    return reviews;
+  }
+
+  // PR detail (comment counts), refetched only when `updated_at` changes.
+  async function ghDetail(
+    owner: string,
+    repo: string,
+    pr: GithubRawPR,
+  ): Promise<{ comments: number; review_comments: number }> {
+    const hit = detailCache.get(pr.id);
+
+    if (hit && hit.updatedAt === pr.updated_at) {
+      logCache("detail", true, `${repo}#${pr.number}`);
+      return { comments: hit.comments, review_comments: hit.review_comments };
+    }
+
+    logCache("detail", false, `${repo}#${pr.number}`);
+    const detail = await gh<{ comments: number; review_comments: number }>(
+      `/repos/${owner}/${repo}/pulls/${pr.number}`,
+    );
+    detailCache.set(pr.id, {
+      updatedAt: pr.updated_at,
+      comments: detail.comments ?? 0,
+      review_comments: detail.review_comments ?? 0,
+    });
+    return detail;
   }
 
   /**
@@ -236,12 +355,8 @@ export function useGithub(
         let commentCount = 0;
 
         const [reviewsRes, prDetailRes] = await Promise.allSettled([
-          gh<GithubReview[]>(
-            `/repos/${owner}/${repo}/pulls/${pr.number}/reviews`,
-          ),
-          gh<{ comments: number; review_comments: number }>(
-            `/repos/${owner}/${repo}/pulls/${pr.number}`,
-          ),
+          ghReviews(owner, repo, pr),
+          ghDetail(owner, repo, pr),
         ]);
 
         if (prDetailRes.status === "fulfilled") {
@@ -425,11 +540,7 @@ export function useGithub(
     }
 
     const reviewResults = await Promise.allSettled(
-      mergedRecently.map((pr) =>
-        gh<GithubReview[]>(
-          `/repos/${owner}/${repo}/pulls/${pr.number}/reviews`,
-        ),
-      ),
+      mergedRecently.map((pr) => ghReviews(owner, repo, pr)),
     );
 
     let totalReviewMs = 0,

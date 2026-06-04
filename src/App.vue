@@ -341,17 +341,20 @@ const statOpen = computed(
   () => baseFilteredPRs.value.filter((p) => p.reviewStatus === "open").length,
 );
 const statApproved = computed(
-  () => baseFilteredPRs.value.filter((p) => p.reviewStatus === "approved").length,
+  () =>
+    baseFilteredPRs.value.filter((p) => p.reviewStatus === "approved").length,
 );
 const statWarn = computed(
   () =>
-    baseFilteredPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "warning")
-      .length,
+    baseFilteredPRs.value.filter(
+      (p) => !p.draft && slaStatus(p.createdAt) === "warning",
+    ).length,
 );
 const statBreach = computed(
   () =>
-    baseFilteredPRs.value.filter((p) => !p.draft && slaStatus(p.createdAt) === "breach")
-      .length,
+    baseFilteredPRs.value.filter(
+      (p) => !p.draft && slaStatus(p.createdAt) === "breach",
+    ).length,
 );
 
 const filteredActivity = computed(() => {
@@ -528,9 +531,7 @@ function isNewlyTrackedNonDraftOpenPullRequest(
   pr: PullRequest,
 ): boolean {
   return (
-    (prevStatus === undefined &&
-      pr.reviewStatus !== "merged" &&
-      !pr.draft) ||
+    (prevStatus === undefined && pr.reviewStatus !== "merged" && !pr.draft) ||
     (prevStatus === "draft" && pr.reviewStatus !== "draft")
   );
 }

@@ -12,11 +12,7 @@ export function useRateLimitPause(
   function currentPauseSeconds(): number {
     const current = rateLimit.value;
 
-    if (
-      current === null ||
-      current.remaining !== 0 ||
-      current.reset === null
-    ) {
+    if (current === null || current.remaining !== 0 || current.reset === null) {
       return 0;
     }
 

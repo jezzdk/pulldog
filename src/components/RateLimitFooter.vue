@@ -23,8 +23,8 @@ const resetLabel = computed(() => {
   <span>
     GitHub rate limit:
     <template v-if="rateLimit">
-      {{ rateLimit.remaining ?? "?" }}/{{ rateLimit.limit ?? "?" }} remaining
-      · used {{ rateLimit.used ?? "?" }} · reset {{ resetLabel }}
+      {{ rateLimit.remaining ?? "?" }}/{{ rateLimit.limit ?? "?" }} remaining ·
+      used {{ rateLimit.used ?? "?" }} · reset {{ resetLabel }}
     </template>
     <template v-else>unknown</template>
   </span>
