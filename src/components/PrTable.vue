@@ -345,6 +345,7 @@ function openPR(url: string): void {
             :class="[
               'border-b border-border last:border-0 transition-colors cursor-pointer hover:bg-muted/20',
               pr._flashClass,
+              pr.reviewStatus === 'open' ? 'row-open' : '',
               pr.reviewStatus === 'approved' ? 'row-approved' : '',
               pr.reviewStatus === 'changes' ? 'row-changes' : '',
             ]"

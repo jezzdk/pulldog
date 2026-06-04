@@ -133,6 +133,16 @@
 }
 
 /* ── Status row highlights ──────────────────────────────── */
+.row-open {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary) / 0.06) 0%,
+    transparent 60%
+  );
+  border-left: 2px solid hsl(var(--primary) / 0.5) !important;
+}
+
+/* ── Status row highlights ──────────────────────────────── */
 .row-approved {
   background: linear-gradient(
     90deg,
