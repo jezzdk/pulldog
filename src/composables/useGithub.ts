@@ -28,6 +28,7 @@ interface GithubRawPR {
   created_at: string;
   updated_at: string;
   merged_at: string | null;
+  closed_at: string | null;
   user: { login: string; avatar_url: string };
   assignees: Array<{ login: string; avatar_url: string }>;
   requested_reviewers: Array<{ login: string; avatar_url: string }>;
@@ -84,6 +85,18 @@ export function useGithub(
     { updatedAt: string; comments: number; review_comments: number }
   >();
 
+  // Per-cycle request dedup. Within a single refresh cycle, `fetchRepo`,
+  // `fetchRecentActivity`, and `fetchReviewStats` all paginate the same
+  // open/closed PR lists. Keyed by token+path, this collapses those identical
+  // GETs into one in-flight promise so the same URL is fetched once per cycle.
+  // Cleared at the start of every cycle (see resetRequestCache) so each cycle
+  // still gets fresh data.
+  const requestCache = new Map<string, Promise<unknown>>();
+
+  function resetRequestCache(): void {
+    requestCache.clear();
+  }
+
   // Cache-tracing. Enable in the browser console with:
   //   localStorage.setItem("pulldog-debug-cache", "1")  // then reload
   // Disable with localStorage.removeItem("pulldog-debug-cache").
@@ -92,7 +105,7 @@ export function useGithub(
     localStorage.getItem("pulldog-debug-cache") === "1";
 
   function logCache(
-    kind: "etag" | "reviews" | "detail",
+    kind: "etag" | "reviews" | "detail" | "dedup",
     hit: boolean,
     label: string,
   ): void {
@@ -145,9 +158,31 @@ export function useGithub(
     };
   }
 
-  async function gh<T>(path: string, overrideToken?: string): Promise<T> {
+  // Dedup wrapper: collapses identical concurrent/in-cycle GETs into one
+  // request. The actual fetching (with ETag revalidation) lives in ghFetch.
+  function gh<T>(path: string, overrideToken?: string): Promise<T> {
     const tok = overrideToken ?? token.value;
     const cacheKey = `${tok}:${path}`;
+
+    const inflight = requestCache.get(cacheKey);
+
+    if (inflight) {
+      logCache("dedup", true, path);
+      return inflight as Promise<T>;
+    }
+
+    const promise = ghFetch<T>(path, tok, cacheKey);
+    requestCache.set(cacheKey, promise);
+    // Don't let a failed request stick around and poison later callers.
+    promise.catch(() => requestCache.delete(cacheKey));
+    return promise;
+  }
+
+  async function ghFetch<T>(
+    path: string,
+    tok: string,
+    cacheKey: string,
+  ): Promise<T> {
     const cached = etagCache.get(cacheKey);
 
     const headers: Record<string, string> = {
@@ -289,10 +324,18 @@ export function useGithub(
     const [owner, repo] = repoFull.split("/");
     const cutoff = Date.now() - periodMs;
 
+    // The moment a closed PR left the board: when it merged, or — if it was
+    // closed without merging — when it was closed.
+    const terminalMs = (pr: GithubRawPR): number | null => {
+      const ts = pr.merged_at ?? pr.closed_at;
+      return ts === null ? null : new Date(ts).getTime();
+    };
+
     // Open PRs: must paginate fully — a PR that hasn't been touched in months
     // is still open and must not be silently dropped.
-    // Closed PRs: sorted by updated desc, so once a full page has no PR merged
-    // within the cutoff window we can stop — anything deeper is older.
+    // Closed PRs: sorted by updated desc, so once a full page has no PR whose
+    // terminal event (merge or close) falls within the cutoff window we can
+    // stop — anything deeper is older.
     const [openRaw, closedRaw] = await Promise.all([
       ghPaginated<GithubRawPR>(
         (page) =>
@@ -303,21 +346,20 @@ export function useGithub(
           `/repos/${owner}/${repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc&page=${page}`,
         {
           earlyExit: (batch) =>
-            batch.every(
-              (pr) =>
-                pr.merged_at === null ||
-                new Date(pr.merged_at).getTime() <= cutoff,
-            ),
+            batch.every((pr) => {
+              const ms = terminalMs(pr);
+              return ms === null || ms <= cutoff;
+            }),
         },
       ),
     ]);
 
     let relevant = [
       ...openRaw,
-      ...closedRaw.filter(
-        (pr) =>
-          pr.merged_at !== null && new Date(pr.merged_at).getTime() > cutoff,
-      ),
+      ...closedRaw.filter((pr) => {
+        const ms = terminalMs(pr);
+        return ms !== null && ms > cutoff;
+      }),
     ];
 
     const re = titleFilter.value;
@@ -343,6 +385,28 @@ export function useGithub(
             requestedReviewers: pr.requested_reviewers ?? [],
             labels: pr.labels ?? [],
             reviewStatus: "merged",
+            commentCount: (pr.comments ?? 0) + (pr.review_comments ?? 0),
+            repo: repoFull,
+            _flashClass: "",
+            _slaRowCss: "",
+          };
+        }
+
+        // Closed without merging: status is known — skip review enrichment
+        if (pr.closed_at !== null) {
+          return {
+            id: pr.id,
+            number: pr.number,
+            title: pr.title,
+            url: pr.html_url,
+            draft: false,
+            createdAt: new Date(pr.created_at),
+            closedAt: new Date(pr.closed_at),
+            author: pr.user,
+            assignees: pr.assignees ?? [],
+            requestedReviewers: pr.requested_reviewers ?? [],
+            labels: pr.labels ?? [],
+            reviewStatus: "closed",
             commentCount: (pr.comments ?? 0) + (pr.review_comments ?? 0),
             repo: repoFull,
             _flashClass: "",
@@ -624,6 +688,7 @@ export function useGithub(
     fetchRecentActivity,
     fetchReviewStats,
     fetchAvailableRepos,
+    resetRequestCache,
     rateLimit: readonly(rateLimit),
   };
 }

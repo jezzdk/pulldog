@@ -15,12 +15,12 @@
 - **Live status** — review state (open, approved, changes requested, draft), CI check results, assignees, and reviewers
 - **SLA tracking** — configurable warning and breach thresholds; rows highlight amber/red as PRs age past them
 - **Comment heat** — shows comment count per PR with a 🔥 when it crosses a configurable threshold
-- **Granular notifications** — independently toggle new PR sound, merge sound, merge confetti, and voice announcements
-- **Custom per-author sounds** — optionally load `pr_open.mp3` / `pr_merged.mp3` from each author's `pulldog-sounds` GitHub repo
+- **Granular notifications** — independently toggle new PR sound, merge sound, close sound, merge confetti, and voice announcements
+- **Custom per-author sounds** — optionally load `pr_open.mp3` / `pr_merged.mp3` / `pr_closed.mp3` from each author's `pulldog-sounds` GitHub repo
 - **Voice announcements (optional)** — OpenAI-powered TTS for new PR and merge events
 - **7-day summary bar** — total open PRs, PRs opened, PRs merged, average lead time, and merge rate
 - **Light / dark / system theme** — persisted to `localStorage`, respects OS preference in system mode
-- **Auto-refresh** — configurable poll interval (15s to 30m); detects new and merged PRs and triggers notifications
+- **Auto-refresh** — configurable poll interval (15s to 30m); detects new, merged, and closed PRs and triggers notifications
 - **Flexible filtering** — by status, SLA state, repo, author, staleness (7d+), free-text search, and title-regex exclusions
 - **Cleaner default views** — optional "Hide Drafts" and "Hide Merged" behavior when "All" is selected
 - **GitHub App OAuth** — one-click "Connect with GitHub" via a Cloudflare Worker; no token copy-pasting required
@@ -175,6 +175,7 @@ When enabled, it looks for files in:
 
 - `https://raw.githubusercontent.com/<github-username>/pulldog-sounds/main/pr_open.mp3`
 - `https://raw.githubusercontent.com/<github-username>/pulldog-sounds/main/pr_merged.mp3`
+- `https://raw.githubusercontent.com/<github-username>/pulldog-sounds/main/pr_closed.mp3`
 
 ### 1) Create your sound repo
 
@@ -182,6 +183,7 @@ For each author you want custom sounds for, create a **public** repo named `pull
 
 - `pr_open.mp3` (played on new PR)
 - `pr_merged.mp3` (played on merge)
+- `pr_closed.mp3` (played when a PR is closed without merging)
 
 ### 2) Enable in Pulldog
 
@@ -189,6 +191,7 @@ Open **Settings → Notifications** and turn on:
 
 - **New PR → Custom sound**
 - **Merge → Custom sound**
+- **Closed → Custom sound**
 
 ### 3) Test
 

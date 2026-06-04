@@ -1,6 +1,12 @@
 // src/types.ts — shared domain types
 
-export type ReviewStatus = "open" | "approved" | "draft" | "changes" | "merged";
+export type ReviewStatus =
+  | "open"
+  | "approved"
+  | "draft"
+  | "changes"
+  | "merged"
+  | "closed";
 export type SlaStatus = "ok" | "warning" | "breach";
 export type Theme = "light" | "dark" | "system";
 export type StatPeriod = "12h" | "24h" | "7d" | "14d" | "30d";
@@ -30,6 +36,7 @@ export interface PullRequest {
   commentCount: number;
   repo: string;
   mergedAt?: Date;
+  closedAt?: Date;
   reviewedAt?: Date;
   _flashClass: string;
   _slaRowCss: string;
@@ -37,7 +44,7 @@ export interface PullRequest {
 
 export interface Toast {
   id: number;
-  type: "new" | "merged";
+  type: "new" | "merged" | "closed";
   icon: string;
   title: string;
   sub: string;

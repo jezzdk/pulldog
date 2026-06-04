@@ -68,6 +68,10 @@ function sortValue(pr: PullRequest, key: SortKey): string | number {
         return pr.mergedAt?.getTime() ?? pr.createdAt.getTime();
       }
 
+      if (pr.reviewStatus === "closed") {
+        return pr.closedAt?.getTime() ?? pr.createdAt.getTime();
+      }
+
       if (pr.reviewStatus === "approved" || pr.reviewStatus === "changes") {
         return pr.reviewedAt?.getTime() ?? pr.createdAt.getTime();
       }
@@ -114,6 +118,7 @@ const STATUS_LABELS: Record<ReviewStatus, string> = {
   draft: "Draft",
   changes: "Changes",
   merged: "Merged",
+  closed: "Closed",
 };
 
 const STATUS_BADGE_VARIANT: Partial<Record<ReviewStatus, BadgeVariant>> = {
@@ -122,6 +127,7 @@ const STATUS_BADGE_VARIANT: Partial<Record<ReviewStatus, BadgeVariant>> = {
   draft: "secondary",
   changes: "orange",
   merged: "purple",
+  closed: "destructive",
 };
 
 function statusLabel(pr: PullRequest): string {
@@ -378,6 +384,14 @@ function openPR(url: string): void {
                   Merged
                   <Tooltip :text="pr.mergedAt.toISOString()">{{
                     verboseAge(pr.mergedAt)
+                  }}</Tooltip>
+                </template>
+                <template
+                  v-else-if="pr.reviewStatus === 'closed' && pr.closedAt"
+                >
+                  Closed
+                  <Tooltip :text="pr.closedAt.toISOString()">{{
+                    verboseAge(pr.closedAt)
                   }}</Tooltip>
                 </template>
                 <template

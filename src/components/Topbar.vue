@@ -33,6 +33,7 @@ defineProps<{
   hasEnvToken: boolean;
   onTestNewPr: () => void;
   onTestMerged: () => void;
+  onTestClosed: () => void;
   onTestMergedWithAuthor: (author: string) => void;
 }>();
 
@@ -178,6 +179,15 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       @click="onTestMerged()"
     >
       🎉 merge
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-6 px-2 font-mono text-[10px]"
+      :disabled="!soundEnabled"
+      @click="onTestClosed()"
+    >
+      🚫 closed
     </Button>
     <span class="font-mono text-[10px] text-muted-foreground/40 ml-2"
       >author:</span

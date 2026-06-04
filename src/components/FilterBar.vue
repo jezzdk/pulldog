@@ -14,6 +14,7 @@ const FILTERS: FilterOption[] = [
   { v: "changes", l: "Changes" },
   { v: "draft", l: "Draft" },
   { v: "merged", l: "Merged" },
+  { v: "closed", l: "Closed" },
   { v: "sla-warn", l: "⚠ Warning" },
   { v: "sla-breach", l: "🔴 Breach" },
 ];

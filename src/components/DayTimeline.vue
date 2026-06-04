@@ -7,6 +7,7 @@ const props = defineProps<{ prs: PullRequest[] }>();
 const emit = defineEmits<{
   "play-opened-sound": [login: string];
   "play-merged-sound": [login: string];
+  "play-closed-sound": [login: string];
 }>();
 
 const now = ref(new Date());
@@ -57,7 +58,7 @@ function timeLabel(date: Date): string {
 
 type TlEvent = {
   pct: number;
-  type: "opened" | "merged";
+  type: "opened" | "merged" | "closed";
   avatar: string;
   login: string;
   tooltip: string;
@@ -95,21 +96,41 @@ const events = computed<TlEvent[]>(() => {
         });
       }
     }
+
+    if (pr.closedAt) {
+      const closedMs = pr.closedAt.getTime();
+
+      if (closedMs >= start && closedMs < end) {
+        raw.push({
+          pct: toPct(pr.closedAt),
+          type: "closed",
+          avatar: pr.author.avatar_url + "&s=48",
+          login: pr.author.login,
+          tooltip: `${pr.repo}#${pr.number} closed by ${pr.author.login} at ${timeLabel(pr.closedAt)}`,
+        });
+      }
+    }
   }
 
   raw.sort((a, b) => a.pct - b.pct);
-  return raw.map((e) => ({ ...e, row: e.type === "opened" ? 0 : 1 }));
+  const ROW_BY_TYPE = { opened: 0, merged: 1, closed: 2 } as const;
+  return raw.map((e) => ({ ...e, row: ROW_BY_TYPE[e.type] }));
 });
 
 // Layout constants (px)
 const TRACK_BOTTOM = 22;
 const AVATAR_SIZE = 16;
 const ROW_HEIGHT = 24;
-const CONTAINER_HEIGHT = 100;
+const CONTAINER_HEIGHT = 104;
 
 function playEventSound(event: TlEvent): void {
   if (event.type === "merged") {
     emit("play-merged-sound", event.login);
+    return;
+  }
+
+  if (event.type === "closed") {
+    emit("play-closed-sound", event.login);
     return;
   }
 
@@ -189,7 +210,13 @@ function playEventSound(event: TlEvent): void {
           <button
             type="button"
             class="rounded-full overflow-hidden ring-2 ring-offset-1 ring-offset-card"
-            :class="ev.type === 'opened' ? 'ring-blue-500' : 'ring-purple-500'"
+            :class="
+              ev.type === 'opened'
+                ? 'ring-blue-500'
+                : ev.type === 'closed'
+                  ? 'ring-red-500'
+                  : 'ring-purple-500'
+            "
             :style="{ width: `${AVATAR_SIZE}px`, height: `${AVATAR_SIZE}px` }"
             @click="playEventSound(ev)"
           >

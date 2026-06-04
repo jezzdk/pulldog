@@ -49,8 +49,10 @@ const props = defineProps<{
   currentPrTtsEnabled: boolean;
   currentPrSoundEnabled: boolean;
   currentMergeSoundEnabled: boolean;
+  currentCloseSoundEnabled: boolean;
   currentCustomSoundEnabled: boolean;
   currentCustomPrSoundEnabled: boolean;
+  currentCustomClosePrSoundEnabled: boolean;
   fetchRepos: (token?: string) => Promise<string[]>;
 }>();
 
@@ -70,8 +72,10 @@ const emit = defineEmits<{
     prTtsEnabled?: boolean,
     newPrSoundEnabled?: boolean,
     newMergeSoundEnabled?: boolean,
+    newCloseSoundEnabled?: boolean,
     newCustomSoundEnabled?: boolean,
     newCustomPrSoundEnabled?: boolean,
+    newCustomClosePrSoundEnabled?: boolean,
   ];
 }>();
 
@@ -90,8 +94,12 @@ const ttsEnabledInput = ref(props.currentTtsEnabled);
 const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
 const prSoundEnabledInput = ref(props.currentPrSoundEnabled);
 const mergeSoundEnabledInput = ref(props.currentMergeSoundEnabled);
+const closeSoundEnabledInput = ref(props.currentCloseSoundEnabled);
 const customSoundEnabledInput = ref(props.currentCustomSoundEnabled);
 const customPrSoundEnabledInput = ref(props.currentCustomPrSoundEnabled);
+const customClosePrSoundEnabledInput = ref(
+  props.currentCustomClosePrSoundEnabled,
+);
 
 watch(
   () => props.open,
@@ -112,8 +120,11 @@ watch(
       prTtsEnabledInput.value = props.currentPrTtsEnabled;
       prSoundEnabledInput.value = props.currentPrSoundEnabled;
       mergeSoundEnabledInput.value = props.currentMergeSoundEnabled;
+      closeSoundEnabledInput.value = props.currentCloseSoundEnabled;
       customSoundEnabledInput.value = props.currentCustomSoundEnabled;
       customPrSoundEnabledInput.value = props.currentCustomPrSoundEnabled;
+      customClosePrSoundEnabledInput.value =
+        props.currentCustomClosePrSoundEnabled;
     }
   },
 );
@@ -175,8 +186,10 @@ function handleSave(): void {
     prTtsEnabledInput.value,
     prSoundEnabledInput.value,
     mergeSoundEnabledInput.value,
+    closeSoundEnabledInput.value,
     customSoundEnabledInput.value,
     customPrSoundEnabledInput.value,
+    customClosePrSoundEnabledInput.value,
   );
 }
 </script>
@@ -474,6 +487,41 @@ function handleSave(): void {
                 </div>
                 <label class="flex w-40 cursor-pointer items-center">
                   <Switch v-model="customSoundEnabledInput" size="sm" />
+                </label>
+              </div>
+            </div>
+
+            <div class="border-t border-border" />
+
+            <!-- Closed -->
+            <div class="space-y-2">
+              <p class="font-mono text-[10px] text-muted-foreground">Closed</p>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Sound</Label>
+                  <Tooltip
+                    text="Play a sound when a PR is closed without merging."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="closeSoundEnabledInput" size="sm" />
+                </label>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>Custom sound</Label>
+                  <Tooltip
+                    text="Looks for a pr_closed.mp3 file in a [author]/pulldog-sounds repo"
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <label class="flex w-40 cursor-pointer items-center">
+                  <Switch v-model="customClosePrSoundEnabledInput" size="sm" />
                 </label>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { ref, type Ref } from "vue";
 import { useOpenAI } from "./useOpenAI";
 import openPrUrl from "@/assets/open_pr.mp3?url";
 import mergedPrUrl from "@/assets/merged_pr.mp3?url";
+import closedPrUrl from "@/assets/closed_pr.mp3?url";
 
 interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
@@ -10,19 +11,25 @@ interface UseAudioReturn {
   prTtsEnabled: Ref<boolean>;
   prSoundEnabled: Ref<boolean>;
   mergeSoundEnabled: Ref<boolean>;
+  closeSoundEnabled: Ref<boolean>;
   customSoundEnabled: Ref<boolean>;
   customPrSoundEnabled: Ref<boolean>;
+  customClosePrSoundEnabled: Ref<boolean>;
   toggle: () => void;
   toggleTts: () => void;
   togglePrTts: () => void;
   togglePrSound: () => void;
   toggleMergeSound: () => void;
+  toggleCloseSound: () => void;
   toggleCustomSound: () => void;
   toggleCustomPrSound: () => void;
+  toggleCustomClosePrSound: () => void;
   playNewPR: (authorName: string) => Promise<void>;
   playMerged: (authorName: string) => Promise<void>;
+  playClosed: (authorName: string) => Promise<void>;
   playDefaultNewPR: () => Promise<void>;
   playDefaultMerged: () => Promise<void>;
+  playDefaultClosed: () => Promise<void>;
 }
 
 const STORAGE_KEY = "pulldog-sound";
@@ -30,8 +37,10 @@ const TTS_STORAGE_KEY = "pulldog-tts-enabled";
 const PR_TTS_KEY = "pulldog-pr-tts-enabled";
 const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
+const CLOSE_SOUND_KEY = "pulldog-close-sound-enabled";
 const CUSTOM_SOUND_KEY = "pulldog-custom-sound-enabled";
 const CUSTOM_PR_SOUND_KEY = "pulldog-custom-pr-sound-enabled";
+const CUSTOM_CLOSE_PR_SOUND_KEY = "pulldog-custom-close-pr-sound-enabled";
 /** Max playback length for per-author custom MP3s (built-in sounds play full length). */
 const CUSTOM_SOUND_MAX_SEC = 10;
 
@@ -43,11 +52,17 @@ export function useAudio(): UseAudioReturn {
   const mergeSoundEnabled = ref(
     localStorage.getItem(MERGE_SOUND_KEY) !== "false",
   );
+  const closeSoundEnabled = ref(
+    localStorage.getItem(CLOSE_SOUND_KEY) !== "false",
+  );
   const customSoundEnabled = ref(
     localStorage.getItem(CUSTOM_SOUND_KEY) === "true",
   );
   const customPrSoundEnabled = ref(
     localStorage.getItem(CUSTOM_PR_SOUND_KEY) === "true",
+  );
+  const customClosePrSoundEnabled = ref(
+    localStorage.getItem(CUSTOM_CLOSE_PR_SOUND_KEY) === "true",
   );
   let audioCtx: AudioContext | null = null;
   const bufferCache = new Map<string, AudioBuffer>();
@@ -87,6 +102,10 @@ export function useAudio(): UseAudioReturn {
 
   function playDefaultMerged(): Promise<void> {
     return playDefaultSound(mergedPrUrl);
+  }
+
+  function playDefaultClosed(): Promise<void> {
+    return playDefaultSound(closedPrUrl);
   }
 
   function ctx(): AudioContext {
@@ -227,6 +246,27 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
+  // ── Closed-without-merging sound ─────────────────────────────────────
+  // Plays the close sound — prefers the author's custom sound when enabled.
+  async function playClosed(authorName: string): Promise<void> {
+    if (!soundEnabled.value || !closeSoundEnabled.value) {
+      return;
+    }
+
+    try {
+      const customUrl =
+        customClosePrSoundEnabled.value && authorName
+          ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_closed.mp3`
+          : null;
+      const buffer = customUrl
+        ? await loadBuffer(customUrl).catch(() => loadBuffer(closedPrUrl))
+        : await loadBuffer(closedPrUrl);
+      playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
+    } catch (_) {
+      /* close sound unavailable */
+    }
+  }
+
   function toggleTts(): void {
     ttsEnabled.value = !ttsEnabled.value;
     localStorage.setItem(TTS_STORAGE_KEY, String(ttsEnabled.value));
@@ -247,6 +287,11 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(MERGE_SOUND_KEY, String(mergeSoundEnabled.value));
   }
 
+  function toggleCloseSound(): void {
+    closeSoundEnabled.value = !closeSoundEnabled.value;
+    localStorage.setItem(CLOSE_SOUND_KEY, String(closeSoundEnabled.value));
+  }
+
   function toggleCustomSound(): void {
     customSoundEnabled.value = !customSoundEnabled.value;
     localStorage.setItem(CUSTOM_SOUND_KEY, String(customSoundEnabled.value));
@@ -257,6 +302,14 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(
       CUSTOM_PR_SOUND_KEY,
       String(customPrSoundEnabled.value),
+    );
+  }
+
+  function toggleCustomClosePrSound(): void {
+    customClosePrSoundEnabled.value = !customClosePrSoundEnabled.value;
+    localStorage.setItem(
+      CUSTOM_CLOSE_PR_SOUND_KEY,
+      String(customClosePrSoundEnabled.value),
     );
   }
 
@@ -281,18 +334,24 @@ export function useAudio(): UseAudioReturn {
     prTtsEnabled,
     prSoundEnabled,
     mergeSoundEnabled,
+    closeSoundEnabled,
     customSoundEnabled,
     customPrSoundEnabled,
+    customClosePrSoundEnabled,
     toggle,
     toggleTts,
     togglePrTts,
     togglePrSound,
     toggleMergeSound,
+    toggleCloseSound,
     toggleCustomSound,
     toggleCustomPrSound,
+    toggleCustomClosePrSound,
     playNewPR,
     playMerged,
+    playClosed,
     playDefaultNewPR,
     playDefaultMerged,
+    playDefaultClosed,
   } as UseAudioReturn;
 }

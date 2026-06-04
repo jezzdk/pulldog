@@ -171,11 +171,14 @@ const {
   prTtsEnabled,
   prSoundEnabled,
   mergeSoundEnabled,
+  closeSoundEnabled,
   customSoundEnabled,
   customPrSoundEnabled,
+  customClosePrSoundEnabled,
   toggle: toggleSound,
   playNewPR,
   playMerged,
+  playClosed,
   playDefaultNewPR,
   playDefaultMerged,
 } = useAudio();
@@ -213,6 +216,11 @@ function playMergedTestWithAuthor(author: string): void {
   }
 }
 
+function playClosedTest(): void {
+  const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
+  void playClosed(author);
+}
+
 const tokenComputed = computed(() => token.value);
 const compiledTitleFilter = computed<RegExp | null>(() => {
   if (!titleFilterRegex.value) {
@@ -230,6 +238,7 @@ const {
   fetchRecentActivity,
   fetchReviewStats,
   fetchAvailableRepos,
+  resetRequestCache,
   rateLimit,
 } = useGithub(tokenComputed, compiledTitleFilter);
 const rateLimitPause = useRateLimitPause(rateLimit);
@@ -287,8 +296,10 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
 
 const totalOpen = computed(
   () =>
-    baseFilteredPRs.value.filter((p) => !p.draft && p.reviewStatus !== "merged")
-      .length,
+    baseFilteredPRs.value.filter(
+      (p) =>
+        !p.draft && p.reviewStatus !== "merged" && p.reviewStatus !== "closed",
+    ).length,
 );
 
 const authorPrCounts = computed(() => {
@@ -321,7 +332,11 @@ const assigneePrCounts = computed(() => {
   > = {};
 
   for (const pr of baseFilteredPRs.value) {
-    if (!pr.draft && pr.reviewStatus !== "merged") {
+    if (
+      !pr.draft &&
+      pr.reviewStatus !== "merged" &&
+      pr.reviewStatus !== "closed"
+    ) {
       for (const { login, avatar_url } of pr.assignees) {
         if (!counts[login]) {
           counts[login] = { login, avatarUrl: avatar_url, count: 0 };
@@ -458,6 +473,8 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
         prs = prs.filter((p) => p.reviewStatus === "draft");
       } else if (activeFilter.value === "merged") {
         prs = prs.filter((p) => p.reviewStatus === "merged");
+      } else if (activeFilter.value === "closed") {
+        prs = prs.filter((p) => p.reviewStatus === "closed");
       } else if (activeFilter.value !== "all") {
         prs = prs.filter(
           (p) =>
@@ -526,13 +543,36 @@ function isStaleMergeOnlySeenBecausePeriodWidened(
   );
 }
 
+/**
+ * When the stat period widens, older closes appear in the payload for the first
+ * time. Those are not live open→closed events relative to the last fetch.
+ */
+function isStaleCloseOnlySeenBecausePeriodWidened(
+  pr: PullRequest,
+  closedPrSliceWiderThanBefore: boolean,
+  priorFetchPeriodMs: number | null,
+  evaluatedAtMs: number,
+): boolean {
+  return (
+    closedPrSliceWiderThanBefore &&
+    priorFetchPeriodMs !== null &&
+    pr.closedAt !== undefined &&
+    pr.closedAt.getTime() < evaluatedAtMs - priorFetchPeriodMs
+  );
+}
+
 function isNewlyTrackedNonDraftOpenPullRequest(
   prevStatus: ReviewStatus | undefined,
   pr: PullRequest,
 ): boolean {
   return (
-    (prevStatus === undefined && pr.reviewStatus !== "merged" && !pr.draft) ||
-    (prevStatus === "draft" && pr.reviewStatus !== "draft")
+    (prevStatus === undefined &&
+      pr.reviewStatus !== "merged" &&
+      pr.reviewStatus !== "closed" &&
+      !pr.draft) ||
+    (prevStatus === "draft" &&
+      pr.reviewStatus !== "draft" &&
+      pr.reviewStatus !== "closed")
   );
 }
 
@@ -555,12 +595,35 @@ function shouldAlertMergedPullRequestThisFetch(
   );
 }
 
+function shouldAlertClosedPullRequestThisFetch(
+  prevStatus: ReviewStatus | undefined,
+  pr: PullRequest,
+  closedPrSliceWiderThanBefore: boolean,
+  priorFetchPeriodMs: number | null,
+  evaluatedAtMs: number,
+): boolean {
+  if (prevStatus === "closed" || pr.reviewStatus !== "closed") {
+    return false;
+  }
+
+  return !isStaleCloseOnlySeenBecausePeriodWidened(
+    pr,
+    closedPrSliceWiderThanBefore,
+    priorFetchPeriodMs,
+    evaluatedAtMs,
+  );
+}
+
 // ── data loading ──────────────────────────────────────────────────
 async function loadAll(isRefresh = false): Promise<void> {
   if (rateLimitPause.sync() > 0) {
     return;
   }
 
+  // Start of a refresh cycle: drop the previous cycle's request dedup so this
+  // cycle fetches each list once but with fresh data. loadActivity (which runs
+  // right after loadAll) then reuses the lists this call already fetched.
+  resetRequestCache();
   loading.value = true;
   const periodMs = STAT_PERIOD_MS[statPeriod.value];
   const priorFetchPeriodMs = lastFetchedStatPeriodMs.value;
@@ -568,6 +631,9 @@ async function loadAll(isRefresh = false): Promise<void> {
     periodMs,
     priorFetchPeriodMs,
   );
+  // Closed-without-merging PRs share the same cutoff window as merges, so the
+  // same widening guard applies.
+  const closedPrSliceWiderThanBefore = mergedPrSliceWiderThanBefore;
   const results = await Promise.allSettled(
     repoList.value.map((repo) => fetchRepo(repo, periodMs)),
   );
@@ -575,8 +641,10 @@ async function loadAll(isRefresh = false): Promise<void> {
   let anyOk = false;
   let shouldPlayDing = false;
   let shouldPlayGong = false;
+  let shouldPlayClosed = false;
   let newPrAuthorName = "";
   let mergedAuthorName = "";
+  let closedAuthorName = "";
 
   for (let i = 0; i < results.length; i++) {
     const repo = repoList.value[i]!;
@@ -629,6 +697,26 @@ async function loadAll(isRefresh = false): Promise<void> {
               `PR merged · ${p.author.login}`,
               `${repo} #${p.number}: ${p.title}`,
             );
+          } else if (
+            shouldAlertClosedPullRequestThisFetch(
+              prevStatus,
+              p,
+              closedPrSliceWiderThanBefore,
+              priorFetchPeriodMs,
+              notificationEvalTimeMs,
+            )
+          ) {
+            if (!shouldPlayClosed) {
+              closedAuthorName = p.author.login;
+            }
+
+            shouldPlayClosed = true;
+            addToast(
+              "closed",
+              "🚫",
+              `PR closed · ${p.author.login}`,
+              `${repo} #${p.number}: ${p.title}`,
+            );
           }
         }
       }
@@ -652,6 +740,8 @@ async function loadAll(isRefresh = false): Promise<void> {
     }
   } else if (shouldPlayDing) {
     void playNewPR(newPrAuthorName);
+  } else if (shouldPlayClosed) {
+    void playClosed(closedAuthorName);
   }
 
   if (!isRefresh && !anyOk) {
@@ -809,8 +899,10 @@ function handleSaveSettings(
   newPrTtsEnabled?: boolean,
   newPrSoundEnabled?: boolean,
   newMergeSoundEnabled?: boolean,
+  newCloseSoundEnabled?: boolean,
   newCustomSoundEnabled?: boolean,
   newCustomPrSoundEnabled?: boolean,
+  newCustomClosePrSoundEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -894,6 +986,14 @@ function handleSaveSettings(
     );
   }
 
+  if (newCloseSoundEnabled !== undefined) {
+    closeSoundEnabled.value = newCloseSoundEnabled;
+    localStorage.setItem(
+      "pulldog-close-sound-enabled",
+      String(newCloseSoundEnabled),
+    );
+  }
+
   if (newCustomSoundEnabled !== undefined) {
     customSoundEnabled.value = newCustomSoundEnabled;
     localStorage.setItem(
@@ -907,6 +1007,14 @@ function handleSaveSettings(
     localStorage.setItem(
       "pulldog-custom-pr-sound-enabled",
       String(newCustomPrSoundEnabled),
+    );
+  }
+
+  if (newCustomClosePrSoundEnabled !== undefined) {
+    customClosePrSoundEnabled.value = newCustomClosePrSoundEnabled;
+    localStorage.setItem(
+      "pulldog-custom-close-pr-sound-enabled",
+      String(newCustomClosePrSoundEnabled),
     );
   }
 }
@@ -1010,6 +1118,7 @@ onMounted(async () => {
       :has-env-token="hasEnvToken"
       :on-test-new-pr="playNewPRTest"
       :on-test-merged="playMergedTest"
+      :on-test-closed="playClosedTest"
       :on-test-merged-with-author="playMergedTestWithAuthor"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
@@ -1097,6 +1206,7 @@ onMounted(async () => {
           :prs="allPRs"
           @play-opened-sound="playNewPR"
           @play-merged-sound="playMerged"
+          @play-closed-sound="playClosed"
         />
 
         <!-- Unified PR table -->
@@ -1147,7 +1257,11 @@ onMounted(async () => {
           v-if="!t.out"
           class="flex items-center gap-3 px-4 py-3 w-full max-w-sm shadow-xl"
           :class="
-            t.type === 'merged' ? 'border-purple-500/30' : 'border-primary/30'
+            t.type === 'merged'
+              ? 'border-purple-500/30'
+              : t.type === 'closed'
+                ? 'border-red-500/30'
+                : 'border-primary/30'
           "
         >
           <span class="text-base shrink-0">{{ t.icon }}</span>
@@ -1215,8 +1329,10 @@ onMounted(async () => {
       :current-pr-tts-enabled="prTtsEnabled"
       :current-pr-sound-enabled="prSoundEnabled"
       :current-merge-sound-enabled="mergeSoundEnabled"
+      :current-close-sound-enabled="closeSoundEnabled"
       :current-custom-sound-enabled="customSoundEnabled"
       :current-custom-pr-sound-enabled="customPrSoundEnabled"
+      :current-custom-close-pr-sound-enabled="customClosePrSoundEnabled"
       :fetch-repos="fetchAvailableRepos"
       @close="showSettings = false"
       @save="handleSaveSettings"
