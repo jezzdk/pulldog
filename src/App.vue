@@ -329,25 +329,19 @@ const authorPrCounts = computed(() => {
     .slice(0, 5);
 });
 
-const assigneePrCounts = computed(() => {
+const reviewerPrCounts = computed(() => {
   const counts: Record<
     string,
     { login: string; avatarUrl: string; count: number }
   > = {};
 
   for (const pr of baseFilteredPRs.value) {
-    if (
-      !pr.draft &&
-      pr.reviewStatus !== "merged" &&
-      pr.reviewStatus !== "closed"
-    ) {
-      for (const { login, avatar_url } of pr.assignees) {
-        if (!counts[login]) {
-          counts[login] = { login, avatarUrl: avatar_url, count: 0 };
-        }
-
-        counts[login].count++;
+    for (const { login, avatar_url } of pr.reviewers) {
+      if (!counts[login]) {
+        counts[login] = { login, avatarUrl: avatar_url, count: 0 };
       }
+
+      counts[login].count++;
     }
   }
 
@@ -1163,7 +1157,7 @@ onMounted(async () => {
       :avg-time-to-review-hours="filteredActivity.avgTimeToReviewHours"
       :avg-time-to-merge-hours="filteredActivity.avgTimeToMergeHours"
       :author-pr-counts="authorPrCounts"
-      :assignee-pr-counts="assigneePrCounts"
+      :reviewer-pr-counts="reviewerPrCounts"
       :loading="summaryLoading"
       v-model:period="statPeriod"
       @test-opened-sound="playDefaultNewPR"

@@ -28,7 +28,7 @@ const props = withDefaults(
     avgTimeToReviewHours: number | null;
     avgTimeToMergeHours: number | null;
     authorPrCounts: { login: string; avatarUrl: string; count: number }[];
-    assigneePrCounts: { login: string; avatarUrl: string; count: number }[];
+    reviewerPrCounts: { login: string; avatarUrl: string; count: number }[];
     loading: boolean;
     period: StatPeriod;
   }>(),
@@ -40,7 +40,7 @@ const props = withDefaults(
     avgTimeToReviewHours: null,
     avgTimeToMergeHours: null,
     authorPrCounts: () => [],
-    assigneePrCounts: () => [],
+    reviewerPrCounts: () => [],
     loading: false,
     period: "7d",
   },
@@ -169,8 +169,8 @@ const maxAuthorCount = computed(() =>
   props.authorPrCounts.reduce((m, a) => Math.max(m, a.count), 1),
 );
 
-const maxAssigneeCount = computed(() =>
-  props.assigneePrCounts.reduce((m, a) => Math.max(m, a.count), 1),
+const maxReviewerCount = computed(() =>
+  props.reviewerPrCounts.reduce((m, a) => Math.max(m, a.count), 1),
 );
 
 function barHeight(count: number, max: number): number {
@@ -394,22 +394,22 @@ function barHeight(count: number, max: number): number {
       </div>
     </template>
 
-    <!-- Assignee bar chart -->
-    <template v-if="assigneePrCounts.length > 0">
+    <!-- Reviewer bar chart -->
+    <template v-if="reviewerPrCounts.length > 0">
       <div class="h-10 w-px bg-border shrink-0 mr-8" />
       <div class="py-4 pr-8 shrink-0">
         <div class="flex items-end gap-1 h-12">
           <Tooltip
-            v-for="a in assigneePrCounts"
+            v-for="a in reviewerPrCounts"
             :key="a.login"
-            :text="`${a.login} · ${a.count} assigned PR${a.count !== 1 ? 's' : ''}`"
+            :text="`${a.login} · ${a.count} reviewed PR${a.count !== 1 ? 's' : ''}`"
             :delay="200"
             side="top"
           >
             <div class="flex flex-col items-center gap-0.5 cursor-default">
               <div
                 class="w-3.5 rounded-t-[2px] bg-foreground/20 hover:bg-primary/50 transition-colors"
-                :style="{ height: barHeight(a.count, maxAssigneeCount) + 'px' }"
+                :style="{ height: barHeight(a.count, maxReviewerCount) + 'px' }"
               />
               <img
                 :src="a.avatarUrl + '&s=24'"
@@ -420,7 +420,7 @@ function barHeight(count: number, max: number): number {
           </Tooltip>
         </div>
         <div class="font-mono text-[10px] text-muted-foreground mt-1.5">
-          assignee top 5
+          reviewer top 5
         </div>
       </div>
     </template>

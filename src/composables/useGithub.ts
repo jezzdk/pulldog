@@ -1,7 +1,7 @@
 // composables/useGithub.ts
 import { readonly, ref } from "vue";
 import type { ComputedRef } from "vue";
-import type { PullRequest, ReviewStatus } from "@/types";
+import type { GithubUser, PullRequest, ReviewStatus } from "@/types";
 
 interface GithubErrorBody {
   message?: string;
@@ -15,7 +15,7 @@ interface GithubRepo {
 interface GithubReview {
   state: string;
   submitted_at: string;
-  user: { login: string };
+  user: GithubUser | null;
 }
 
 interface GithubRawPR {
@@ -248,6 +248,24 @@ export function useGithub(
     return reviews;
   }
 
+  function isCountedReviewState(state: string): boolean {
+    return state === "APPROVED" || state === "CHANGES_REQUESTED";
+  }
+
+  function reviewersFromReviews(reviews: GithubReview[]): GithubUser[] {
+    const reviewers: Record<string, GithubUser> = {};
+
+    for (const review of reviews) {
+      if (!review.user || !isCountedReviewState(review.state)) {
+        continue;
+      }
+
+      reviewers[review.user.login] = review.user;
+    }
+
+    return Object.values(reviewers);
+  }
+
   // PR detail (comment counts), refetched only when `updated_at` changes.
   async function ghDetail(
     owner: string,
@@ -370,8 +388,10 @@ export function useGithub(
 
     return Promise.all(
       relevant.map(async (pr): Promise<PullRequest> => {
-        // Merged PRs: status is known — skip review enrichment
+        // Merged/closed PRs need reviews for the reviewer leaderboard.
         if (pr.merged_at !== null) {
+          const reviews = await ghReviews(owner, repo, pr).catch(() => []);
+
           return {
             id: pr.id,
             number: pr.number,
@@ -383,6 +403,7 @@ export function useGithub(
             author: pr.user,
             assignees: pr.assignees ?? [],
             requestedReviewers: pr.requested_reviewers ?? [],
+            reviewers: reviewersFromReviews(reviews),
             labels: pr.labels ?? [],
             reviewStatus: "merged",
             commentCount: (pr.comments ?? 0) + (pr.review_comments ?? 0),
@@ -392,8 +413,9 @@ export function useGithub(
           };
         }
 
-        // Closed without merging: status is known — skip review enrichment
         if (pr.closed_at !== null) {
+          const reviews = await ghReviews(owner, repo, pr).catch(() => []);
+
           return {
             id: pr.id,
             number: pr.number,
@@ -405,6 +427,7 @@ export function useGithub(
             author: pr.user,
             assignees: pr.assignees ?? [],
             requestedReviewers: pr.requested_reviewers ?? [],
+            reviewers: reviewersFromReviews(reviews),
             labels: pr.labels ?? [],
             reviewStatus: "closed",
             commentCount: (pr.comments ?? 0) + (pr.review_comments ?? 0),
@@ -429,16 +452,19 @@ export function useGithub(
             (prDetailRes.value.review_comments ?? 0);
         }
 
+        const reviews =
+          reviewsRes.status === "fulfilled" ? reviewsRes.value : [];
+        const reviewers = reviewersFromReviews(reviews);
         let reviewedAt: Date | undefined;
 
-        if (reviewsRes.status === "fulfilled" && !pr.draft) {
+        if (!pr.draft) {
           const latest: Record<
             string,
             { state: string; submitted_at: string }
           > = {};
 
-          for (const rv of reviewsRes.value) {
-            if (rv.state !== "COMMENTED") {
+          for (const rv of reviews) {
+            if (rv.user && rv.state !== "COMMENTED") {
               latest[rv.user.login] = rv;
             }
           }
@@ -470,6 +496,7 @@ export function useGithub(
           author: pr.user,
           assignees: pr.assignees ?? [],
           requestedReviewers: pr.requested_reviewers ?? [],
+          reviewers,
           labels: pr.labels ?? [],
           reviewStatus,
           commentCount,

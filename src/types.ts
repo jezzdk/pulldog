@@ -31,6 +31,7 @@ export interface PullRequest {
   author: GithubUser;
   assignees: GithubUser[];
   requestedReviewers: GithubUser[];
+  reviewers: GithubUser[];
   labels: GithubLabel[];
   reviewStatus: ReviewStatus;
   commentCount: number;
