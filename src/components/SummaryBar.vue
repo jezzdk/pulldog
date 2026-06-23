@@ -180,10 +180,10 @@ function barHeight(count: number, max: number): number {
 
 <template>
   <div
-    class="flex items-center gap-0 overflow-x-auto border-b border-border bg-card px-6"
+    class="flex items-center gap-6 overflow-x-auto border-b border-border bg-card px-6"
   >
     <!-- Open PRs -->
-    <div class="py-4 pr-8 shrink-0">
+    <div class="py-4 shrink-0">
       <div
         class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight text-foreground"
       >
@@ -203,13 +203,13 @@ function barHeight(count: number, max: number): number {
       </div>
     </div>
 
-    <div class="h-10 w-px bg-border shrink-0 mr-8" />
+    <div class="h-10 w-px bg-border shrink-0" />
 
     <!-- Created -->
     <div
       role="button"
       tabindex="0"
-      class="py-4 pr-8 shrink-0 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      class="py-4 shrink-0 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
       aria-label="Play opened PR sound"
       @click="$emit('testOpenedSound')"
       @keydown.enter="$emit('testOpenedSound')"
@@ -234,13 +234,13 @@ function barHeight(count: number, max: number): number {
       </div>
     </div>
 
-    <div class="h-10 w-px bg-border shrink-0 mr-8" />
+    <div class="h-10 w-px bg-border shrink-0" />
 
     <!-- Merged -->
     <div
       role="button"
       tabindex="0"
-      class="py-4 pr-8 shrink-0 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      class="py-4 shrink-0 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
       aria-label="Play merged PR sound"
       @click="$emit('testMergedSound')"
       @keydown.enter="$emit('testMergedSound')"
@@ -265,10 +265,10 @@ function barHeight(count: number, max: number): number {
       </div>
     </div>
 
-    <div class="h-10 w-px bg-border shrink-0 mr-8" />
+    <div class="h-10 w-px bg-border shrink-0" />
 
     <!-- Throughput -->
-    <div class="py-4 pr-8 shrink-0">
+    <div class="py-4 shrink-0">
       <div
         class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="throughputClass"
@@ -291,10 +291,10 @@ function barHeight(count: number, max: number): number {
       </div>
     </div>
 
-    <div class="h-10 w-px bg-border shrink-0 mr-8" />
+    <div class="h-10 w-px bg-border shrink-0" />
 
     <!-- Avg lead time -->
-    <div class="py-4 pr-8 shrink-0">
+    <div class="py-4 shrink-0">
       <div
         class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="leadClass"
@@ -315,10 +315,10 @@ function barHeight(count: number, max: number): number {
       </div>
     </div>
 
-    <div class="h-10 w-px bg-border shrink-0 mr-8" />
+    <div class="h-10 w-px bg-border shrink-0" />
 
     <!-- Avg time to review -->
-    <div class="py-4 pr-8 shrink-0">
+    <div class="py-4 shrink-0">
       <div
         class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="timeClass(avgTimeToReviewHours)"
@@ -339,10 +339,10 @@ function barHeight(count: number, max: number): number {
       </div>
     </div>
 
-    <div class="h-10 w-px bg-border shrink-0 mr-8" />
+    <div class="h-10 w-px bg-border shrink-0" />
 
     <!-- Avg time to merge -->
-    <div class="py-4 pr-8 shrink-0">
+    <div class="py-4 shrink-0">
       <div
         class="mb-1 flex h-6 items-center font-mono text-2xl font-bold leading-none tracking-tight"
         :class="timeClass(avgTimeToMergeHours)"
@@ -365,8 +365,8 @@ function barHeight(count: number, max: number): number {
 
     <!-- Author bar chart -->
     <template v-if="authorPrCounts.length > 0">
-      <div class="h-10 w-px bg-border shrink-0 mr-8" />
-      <div class="py-4 pr-8 shrink-0">
+      <div class="h-10 w-px bg-border shrink-0" />
+      <div class="py-4 shrink-0">
         <div class="flex items-end gap-1 h-12">
           <Tooltip
             v-for="a in authorPrCounts"
@@ -396,8 +396,8 @@ function barHeight(count: number, max: number): number {
 
     <!-- Reviewer bar chart -->
     <template v-if="reviewerPrCounts.length > 0">
-      <div class="h-10 w-px bg-border shrink-0 mr-8" />
-      <div class="py-4 pr-8 shrink-0">
+      <div class="h-10 w-px bg-border shrink-0" />
+      <div class="py-4 shrink-0">
         <div class="flex items-end gap-1 h-12">
           <Tooltip
             v-for="a in reviewerPrCounts"
