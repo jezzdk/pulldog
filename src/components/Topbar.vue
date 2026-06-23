@@ -21,6 +21,7 @@ const testUsername = ref("");
 defineProps<{
   statOpen: number;
   statApproved: number;
+  statChanges: number;
   statWarn: number;
   statBreach: number;
   soundEnabled: boolean;
@@ -62,6 +63,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       <div class="hidden sm:flex items-center gap-1.5">
         <Badge variant="default">{{ statOpen }} open</Badge>
         <Badge variant="success">{{ statApproved }} approved</Badge>
+        <Badge variant="orange">{{ statChanges }} changes</Badge>
 
         <Badge variant="warning" v-if="statWarn > 0">
           ⚠ {{ statWarn }} warn

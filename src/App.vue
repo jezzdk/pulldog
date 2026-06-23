@@ -12,7 +12,7 @@ import {
   SLA_WARNING_KEY,
   SLA_BREACH_KEY,
 } from "@/composables/useSla";
-import type { StatPeriod } from "@/types";
+import type { SlaStatus, StatPeriod } from "@/types";
 import { useTheme } from "@/composables/useTheme";
 import { useConfetti } from "@/composables/useConfetti";
 import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
@@ -298,6 +298,10 @@ const baseFilteredPRs = computed<PullRequest[]>(() =>
     }),
 );
 
+function isOpenPrWithSlaStatus(pr: PullRequest, status: SlaStatus): boolean {
+  return pr.reviewStatus === "open" && slaStatus(pr.createdAt) === status;
+}
+
 const totalOpen = computed(
   () =>
     baseFilteredPRs.value.filter(
@@ -357,17 +361,18 @@ const statApproved = computed(
   () =>
     baseFilteredPRs.value.filter((p) => p.reviewStatus === "approved").length,
 );
+const statChanges = computed(
+  () => baseFilteredPRs.value.filter((p) => p.reviewStatus === "changes").length,
+);
 const statWarn = computed(
   () =>
-    baseFilteredPRs.value.filter(
-      (p) => !p.draft && slaStatus(p.createdAt) === "warning",
-    ).length,
+    baseFilteredPRs.value.filter((p) => isOpenPrWithSlaStatus(p, "warning"))
+      .length,
 );
 const statBreach = computed(
   () =>
-    baseFilteredPRs.value.filter(
-      (p) => !p.draft && slaStatus(p.createdAt) === "breach",
-    ).length,
+    baseFilteredPRs.value.filter((p) => isOpenPrWithSlaStatus(p, "breach"))
+      .length,
 );
 
 const filteredActivity = computed(() => {
@@ -458,15 +463,9 @@ const filteredGroups = computed<FilteredGroup[]>(() =>
       let prs: PullRequest[] = [...entry];
 
       if (activeFilter.value === "sla-warn") {
-        prs = prs.filter(
-          (p) =>
-            p.reviewStatus === "open" && slaStatus(p.createdAt) === "warning",
-        );
+        prs = prs.filter((p) => isOpenPrWithSlaStatus(p, "warning"));
       } else if (activeFilter.value === "sla-breach") {
-        prs = prs.filter(
-          (p) =>
-            p.reviewStatus === "open" && slaStatus(p.createdAt) === "breach",
-        );
+        prs = prs.filter((p) => isOpenPrWithSlaStatus(p, "breach"));
       } else if (activeFilter.value === "draft") {
         prs = prs.filter((p) => p.reviewStatus === "draft");
       } else if (activeFilter.value === "merged") {
@@ -1111,6 +1110,7 @@ onMounted(async () => {
     <Topbar
       :stat-open="statOpen"
       :stat-approved="statApproved"
+      :stat-changes="statChanges"
       :stat-warn="statWarn"
       :stat-breach="statBreach"
       :sound-enabled="soundEnabled"
