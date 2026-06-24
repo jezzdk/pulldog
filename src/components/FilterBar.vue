@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import Input from "@/components/ui/Input.vue";
 import MultiSelect from "@/components/ui/MultiSelect.vue";
+import Switch from "@/components/ui/Switch.vue";
 
 interface FilterOption {
   v: string;
@@ -19,7 +21,7 @@ const FILTERS: FilterOption[] = [
   { v: "sla-breach", l: "🔴 Breach" },
 ];
 
-defineProps<{
+const props = defineProps<{
   activeFilter: string;
   searchQ: string;
   repoOptions: string[];
@@ -37,6 +39,15 @@ const emit = defineEmits<{
   "update:selectedAuthors": [value: string[]];
   "toggle-timeline": [];
 }>();
+
+const timelineModel = computed({
+  get: () => props.timelineOpen,
+  set: (value: boolean) => {
+    if (value !== props.timelineOpen) {
+      emit("toggle-timeline");
+    }
+  },
+});
 </script>
 
 <template>
@@ -84,17 +95,19 @@ const emit = defineEmits<{
     <div class="h-4 w-px bg-border mx-1" />
 
     <!-- Timeline toggle -->
-    <button
-      @click="emit('toggle-timeline')"
-      class="rounded-full border px-3 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap"
-      :class="
-        timelineOpen
-          ? 'border-primary/50 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground'
-      "
-    >
-      Timeline
-    </button>
+    <div class="flex items-center gap-2 whitespace-nowrap">
+      <span
+        class="font-mono text-[11px] transition-colors"
+        :class="timelineOpen ? 'text-primary' : 'text-muted-foreground'"
+      >
+        Timeline
+      </span>
+      <Switch
+        v-model="timelineModel"
+        aria-label="Toggle timeline"
+        class="duration-200 hover:ring-2 hover:ring-ring/25"
+      />
+    </div>
 
     <!-- Search -->
     <Input
