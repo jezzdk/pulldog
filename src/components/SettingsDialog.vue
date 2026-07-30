@@ -37,6 +37,8 @@ const props = defineProps<{
   open: boolean;
   hasEnvToken: boolean;
   currentToken: string;
+  hasEnvOpenaiKey: boolean;
+  currentOpenaiKey: string;
   currentTitleFilter: string;
   currentPollInterval: number;
   currentSlaWarningHours: number;
@@ -78,10 +80,12 @@ const emit = defineEmits<{
     newCustomSoundEnabled?: boolean,
     newCustomPrSoundEnabled?: boolean,
     newCustomClosePrSoundEnabled?: boolean,
+    openAIKey?: string,
   ];
 }>();
 
 const tokenInput = ref(props.currentToken);
+const openAIKeyInput = ref(props.currentOpenaiKey);
 const titleFilterInput = ref(props.currentTitleFilter);
 const pollIntervalInput = ref(props.currentPollInterval);
 const slaWarningHoursInput = ref(props.currentSlaWarningHours);
@@ -109,6 +113,7 @@ watch(
   (open) => {
     if (open) {
       tokenInput.value = props.currentToken;
+      openAIKeyInput.value = props.currentOpenaiKey;
       titleFilterInput.value = props.currentTitleFilter;
       pollIntervalInput.value = props.currentPollInterval;
       slaWarningHoursInput.value = props.currentSlaWarningHours;
@@ -195,6 +200,7 @@ function handleSave(): void {
     customSoundEnabledInput.value,
     customPrSoundEnabledInput.value,
     customClosePrSoundEnabledInput.value,
+    props.hasEnvOpenaiKey ? undefined : openAIKeyInput.value.trim(),
   );
 }
 </script>
@@ -421,7 +427,7 @@ function handleSave(): void {
                 <div class="flex items-center gap-1.5">
                   <Label>Voice</Label>
                   <Tooltip
-                    text="Speak an announcement when a new PR is opened. Requires sound to be enabled."
+                    text="Speak an announcement when a new PR is opened. Requires sound and an OpenAI API key."
                     :delay="300"
                   >
                     <Info class="h-3 w-3 cursor-help text-muted-foreground" />
@@ -484,7 +490,7 @@ function handleSave(): void {
                 <div class="flex items-center gap-1.5">
                   <Label>Voice</Label>
                   <Tooltip
-                    text="Speak an announcement when a PR is merged. Requires sound to be enabled."
+                    text="Speak an announcement when a PR is merged. Requires sound and an OpenAI API key."
                     :delay="300"
                   >
                     <Info class="h-3 w-3 cursor-help text-muted-foreground" />
@@ -542,6 +548,39 @@ function handleSave(): void {
                 <label class="flex w-40 cursor-pointer items-center">
                   <Switch v-model="customClosePrSoundEnabledInput" size="sm" />
                 </label>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Text-to-speech -->
+        <fieldset
+          v-if="!hasEnvOpenaiKey"
+          class="rounded border border-border px-3 pb-2.5 pt-1"
+        >
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+          >
+            Text-to-speech
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <Label>OpenAI Key</Label>
+                <Tooltip
+                  text="Enables voice announcements. Saved to localStorage — sent only to api.openai.com."
+                  :delay="300"
+                >
+                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                </Tooltip>
+              </div>
+              <div class="w-40">
+                <Input
+                  v-model="openAIKeyInput"
+                  type="password"
+                  placeholder="sk-..."
+                  class="w-full"
+                />
               </div>
             </div>
           </div>

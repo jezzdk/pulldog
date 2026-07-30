@@ -17,7 +17,7 @@
 - **Comment heat** — shows comment count per PR with a 🔥 when it crosses a configurable threshold
 - **Granular notifications** — independently toggle new PR sound, merge sound, close sound, merge confetti, and voice announcements
 - **Custom per-author sounds** — optionally load `pr_open.mp3` / `pr_merged.mp3` / `pr_closed.mp3` from each author's `pulldog-sounds` GitHub repo
-- **Voice announcements (optional)** — OpenAI-powered TTS for new PR and merge events
+- **Voice announcements (optional)** — OpenAI-powered TTS for new PR and merge events; bring your own key via Settings, or set it in the environment
 - **7-day summary bar** — total open PRs, PRs opened, PRs merged, average lead time, and merge rate
 - **Light / dark / system theme** — persisted to `localStorage`, respects OS preference in system mode
 - **Auto-refresh** — configurable poll interval (15s to 30m); detects new, merged, and closed PRs and triggers notifications
@@ -143,7 +143,9 @@ VITE_POLL_INTERVAL_S=60
 # Show sound test buttons in the top bar (true | false)
 VITE_TEST_MODE=false
 
-# Optional: OpenAI API key for voice announcements
+# Optional: OpenAI API key for voice announcements.
+# Leave blank so each user supplies their own key under Settings > Authentication.
+# Warning: any value set here is inlined into the public JS bundle at build time.
 VITE_OPENAI_API_KEY=
 ```
 

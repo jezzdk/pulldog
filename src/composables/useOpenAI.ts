@@ -1,13 +1,16 @@
+import { usePersistedOpenAIKey } from "./usePersistedOpenAIKey";
+
 interface UseOpenAIReturn {
   textToSpeech: (text: string, voice?: string) => Promise<ArrayBuffer>;
 }
 
 export function useOpenAI(): UseOpenAIReturn {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const { openAIKey } = usePersistedOpenAIKey();
+  const apiKey = openAIKey.value;
 
   if (!apiKey) {
     console.warn(
-      "OpenAI API key not found. TTS notifications will be skipped. Set VITE_OPENAI_API_KEY to enable.",
+      "OpenAI API key not found. TTS notifications will be skipped. Add one in Settings, or set VITE_OPENAI_API_KEY to enable.",
     );
   }
 

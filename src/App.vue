@@ -17,6 +17,7 @@ import { useTheme } from "@/composables/useTheme";
 import { useConfetti } from "@/composables/useConfetti";
 import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
 import { usePersistedToken, TOKEN_KEY } from "@/composables/usePersistedToken";
+import { usePersistedOpenAIKey } from "@/composables/usePersistedOpenAIKey";
 import type { PullRequest, ReviewStatus, Toast, FilteredGroup } from "@/types";
 
 import SetupScreen from "@/components/SetupScreen.vue";
@@ -68,6 +69,11 @@ const STAT_PERIOD_MS: Record<StatPeriod, number> = {
 // ── persisted repos + token ───────────────────────────────────────
 const { repoList, saveList } = usePersistedRepos();
 const { token, hasEnvToken, save: saveToken } = usePersistedToken();
+const {
+  openAIKey,
+  hasEnvOpenAIKey,
+  save: saveOpenAIKey,
+} = usePersistedOpenAIKey();
 
 const TITLE_FILTER_KEY = "pulldog-title-filter";
 const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
@@ -902,12 +908,17 @@ function handleSaveSettings(
   newCustomSoundEnabled?: boolean,
   newCustomPrSoundEnabled?: boolean,
   newCustomClosePrSoundEnabled?: boolean,
+  newOpenAIKey?: string,
 ): void {
   showSettings.value = false;
 
   if (newToken !== undefined) {
     token.value = newToken;
     saveToken(newToken);
+  }
+
+  if (newOpenAIKey !== undefined) {
+    saveOpenAIKey(newOpenAIKey);
   }
 
   if (newTitleFilter !== undefined) {
@@ -1322,6 +1333,8 @@ onMounted(async () => {
       :open="showSettings"
       :has-env-token="hasEnvToken || isOAuth"
       :current-token="token"
+      :has-env-openai-key="hasEnvOpenAIKey"
+      :current-openai-key="openAIKey"
       :current-title-filter="titleFilterRegex"
       :current-poll-interval="pollIntervalS"
       :current-sla-warning-hours="slaWarningHours"
