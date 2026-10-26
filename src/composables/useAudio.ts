@@ -9,6 +9,7 @@ interface UseAudioReturn {
   soundEnabled: Ref<boolean>;
   ttsEnabled: Ref<boolean>;
   prTtsEnabled: Ref<boolean>;
+  closeTtsEnabled: Ref<boolean>;
   prSoundEnabled: Ref<boolean>;
   mergeSoundEnabled: Ref<boolean>;
   closeSoundEnabled: Ref<boolean>;
@@ -34,6 +35,7 @@ interface UseAudioReturn {
 
 const STORAGE_KEY = "pulldog-sound";
 const TTS_STORAGE_KEY = "pulldog-tts-enabled";
+const CLOSE_TTS_KEY = "pulldog-close-tts-enabled";
 const PR_TTS_KEY = "pulldog-pr-tts-enabled";
 const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
@@ -48,6 +50,7 @@ export function useAudio(): UseAudioReturn {
   const soundEnabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
   const ttsEnabled = ref(localStorage.getItem(TTS_STORAGE_KEY) === "true");
   const prTtsEnabled = ref(localStorage.getItem(PR_TTS_KEY) === "true");
+  const closeTtsEnabled = ref(localStorage.getItem(CLOSE_TTS_KEY) === "true");
   const prSoundEnabled = ref(localStorage.getItem(PR_SOUND_KEY) !== "false");
   const mergeSoundEnabled = ref(
     localStorage.getItem(MERGE_SOUND_KEY) !== "false",
@@ -247,23 +250,42 @@ export function useAudio(): UseAudioReturn {
   }
 
   // ── Closed-without-merging sound ─────────────────────────────────────
-  // Plays the close sound — prefers the author's custom sound when enabled.
+  // Plays the close sound and optional voice announcement.
   async function playClosed(authorName: string): Promise<void> {
-    if (!soundEnabled.value || !closeSoundEnabled.value) {
+    if (!soundEnabled.value) {
+      return;
+    }
+
+    if (closeSoundEnabled.value) {
+      try {
+        const customUrl =
+          customClosePrSoundEnabled.value && authorName
+            ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_closed.mp3`
+            : null;
+        const buffer = customUrl
+          ? await loadBuffer(customUrl).catch(() => loadBuffer(closedPrUrl))
+          : await loadBuffer(closedPrUrl);
+        playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
+      } catch (_) {
+        /* close sound unavailable */
+      }
+    }
+
+    if (!closeTtsEnabled.value) {
       return;
     }
 
     try {
-      const customUrl =
-        customClosePrSoundEnabled.value && authorName
-          ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_closed.mp3`
-          : null;
-      const buffer = customUrl
-        ? await loadBuffer(customUrl).catch(() => loadBuffer(closedPrUrl))
-        : await loadBuffer(closedPrUrl);
-      playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
+      const { textToSpeech } = useOpenAI();
+      const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+      const voice = voices[Math.floor(Math.random() * voices.length)]!;
+      const audioBuffer = await textToSpeech(
+        `A pull request by ${authorName} was closed without merging`,
+        voice,
+      );
+      playBuffer(await ctx().decodeAudioData(audioBuffer));
     } catch (_) {
-      /* close sound unavailable */
+      /* TTS not available */
     }
   }
 
@@ -332,6 +354,7 @@ export function useAudio(): UseAudioReturn {
     soundEnabled,
     ttsEnabled,
     prTtsEnabled,
+    closeTtsEnabled,
     prSoundEnabled,
     mergeSoundEnabled,
     closeSoundEnabled,

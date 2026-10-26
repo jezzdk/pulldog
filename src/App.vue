@@ -179,6 +179,7 @@ const {
   soundEnabled,
   ttsEnabled,
   prTtsEnabled,
+  closeTtsEnabled,
   prSoundEnabled,
   mergeSoundEnabled,
   closeSoundEnabled,
@@ -368,7 +369,8 @@ const statApproved = computed(
     baseFilteredPRs.value.filter((p) => p.reviewStatus === "approved").length,
 );
 const statChanges = computed(
-  () => baseFilteredPRs.value.filter((p) => p.reviewStatus === "changes").length,
+  () =>
+    baseFilteredPRs.value.filter((p) => p.reviewStatus === "changes").length,
 );
 const statWarn = computed(
   () =>
@@ -910,6 +912,7 @@ function handleSaveSettings(
   newCustomClosePrSoundEnabled?: boolean,
   newOpenAIKey?: string,
   newTimelineSettings?: TimelineSettings,
+  newCloseTtsEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -991,6 +994,14 @@ function handleSaveSettings(
   if (newPrTtsEnabled !== undefined) {
     prTtsEnabled.value = newPrTtsEnabled;
     localStorage.setItem("pulldog-pr-tts-enabled", String(newPrTtsEnabled));
+  }
+
+  if (newCloseTtsEnabled !== undefined) {
+    closeTtsEnabled.value = newCloseTtsEnabled;
+    localStorage.setItem(
+      "pulldog-close-tts-enabled",
+      String(newCloseTtsEnabled),
+    );
   }
 
   if (newPrSoundEnabled !== undefined) {
@@ -1352,6 +1363,7 @@ onMounted(async () => {
       :current-confetti-enabled="confettiEnabled"
       :current-tts-enabled="ttsEnabled"
       :current-pr-tts-enabled="prTtsEnabled"
+      :current-close-tts-enabled="closeTtsEnabled"
       :current-pr-sound-enabled="prSoundEnabled"
       :current-merge-sound-enabled="mergeSoundEnabled"
       :current-close-sound-enabled="closeSoundEnabled"

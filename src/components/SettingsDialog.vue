@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "radix-vue";
 import Dialog from "@/components/ui/Dialog.vue";
 import Button from "@/components/ui/Button.vue";
 import Input from "@/components/ui/Input.vue";
@@ -53,6 +54,7 @@ const props = defineProps<{
   currentConfettiEnabled: boolean;
   currentTtsEnabled: boolean;
   currentPrTtsEnabled: boolean;
+  currentCloseTtsEnabled: boolean;
   currentPrSoundEnabled: boolean;
   currentMergeSoundEnabled: boolean;
   currentCloseSoundEnabled: boolean;
@@ -85,14 +87,25 @@ const emit = defineEmits<{
     newCustomClosePrSoundEnabled?: boolean,
     openAIKey?: string,
     timelineSettings?: TimelineSettings,
+    closeTtsEnabled?: boolean,
   ];
 }>();
+
+const activeTab = ref("dashboard");
+const settingsTabs = computed(() => [
+  { value: "dashboard", label: "Dashboard" },
+  { value: "notifications", label: "Notifications" },
+  ...(!props.hasEnvToken || !props.hasEnvOpenaiKey
+    ? [{ value: "keys", label: "API keys" }]
+    : []),
+]);
 
 const timelineInput = ref({ ...props.currentTimelineSettings });
 const timelineRangeValid = computed(
   () =>
-    Boolean(timelineInput.value.startTime && timelineInput.value.endTime) &&
-    timelineInput.value.startTime < timelineInput.value.endTime,
+    !timelineInput.value.enabled ||
+    (Boolean(timelineInput.value.startTime && timelineInput.value.endTime) &&
+      timelineInput.value.startTime < timelineInput.value.endTime),
 );
 
 const tokenInput = ref(props.currentToken);
@@ -110,6 +123,7 @@ const hideClosedInAllInput = ref(props.currentHideClosedInAll);
 const confettiEnabledInput = ref(props.currentConfettiEnabled);
 const ttsEnabledInput = ref(props.currentTtsEnabled);
 const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
+const closeTtsEnabledInput = ref(props.currentCloseTtsEnabled);
 const prSoundEnabledInput = ref(props.currentPrSoundEnabled);
 const mergeSoundEnabledInput = ref(props.currentMergeSoundEnabled);
 const closeSoundEnabledInput = ref(props.currentCloseSoundEnabled);
@@ -123,6 +137,7 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
+      activeTab.value = "dashboard";
       timelineInput.value = { ...props.currentTimelineSettings };
       tokenInput.value = props.currentToken;
       openAIKeyInput.value = props.currentOpenaiKey;
@@ -139,6 +154,7 @@ watch(
       confettiEnabledInput.value = props.currentConfettiEnabled;
       ttsEnabledInput.value = props.currentTtsEnabled;
       prTtsEnabledInput.value = props.currentPrTtsEnabled;
+      closeTtsEnabledInput.value = props.currentCloseTtsEnabled;
       prSoundEnabledInput.value = props.currentPrSoundEnabled;
       mergeSoundEnabledInput.value = props.currentMergeSoundEnabled;
       closeSoundEnabledInput.value = props.currentCloseSoundEnabled;
@@ -168,6 +184,17 @@ watch(ttsEnabledInput, (v) => {
 watch(customSoundEnabledInput, (v) => {
   if (v) {
     ttsEnabledInput.value = false;
+  }
+});
+
+watch(closeTtsEnabledInput, (enabled) => {
+  if (enabled) {
+    customClosePrSoundEnabledInput.value = false;
+  }
+});
+watch(customClosePrSoundEnabledInput, (enabled) => {
+  if (enabled) {
+    closeTtsEnabledInput.value = false;
   }
 });
 
@@ -214,487 +241,550 @@ function handleSave(): void {
     customClosePrSoundEnabledInput.value,
     props.hasEnvOpenaiKey ? undefined : openAIKeyInput.value.trim(),
     { ...timelineInput.value },
+    closeTtsEnabledInput.value,
   );
 }
 </script>
 
 <template>
-  <Dialog :open="open" @close="$emit('close')">
-    <div class="space-y-3">
+  <Dialog
+    :open="open"
+    class="flex max-w-3xl flex-col overflow-hidden p-4 sm:p-6"
+    @close="$emit('close')"
+  >
+    <TabsRoot v-model="activeTab" class="flex min-h-0 flex-col gap-4">
       <h2 class="font-mono text-sm font-semibold text-foreground">Settings</h2>
 
-      <div class="space-y-3">
-        <!-- Sync -->
-        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
-          >
-            Sync
-          </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Poll Interval</Label>
-                <Tooltip
-                  text="How often to refresh pull requests."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <select
-                v-model.number="pollIntervalInput"
-                class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option
-                  v-for="opt in POLL_INTERVAL_OPTIONS"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-          </div>
-        </fieldset>
+      <TabsList
+        aria-label="Settings categories"
+        class="flex shrink-0 gap-4 border-b border-border"
+      >
+        <TabsTrigger
+          v-for="tab in settingsTabs"
+          :key="tab.value"
+          :value="tab.value"
+          class="border-b-2 border-transparent pb-2 font-mono text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:border-primary data-[state=active]:text-foreground"
+        >
+          {{ tab.label }}
+        </TabsTrigger>
+      </TabsList>
 
-        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
-          >
-            Timeline
-          </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <Label for="timeline-enabled">Show Timeline</Label>
-              <div class="w-40">
-                <Switch
-                  id="timeline-enabled"
-                  v-model="timelineInput.enabled"
-                  size="sm"
-                />
-              </div>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <Label for="timeline-start">Start Time</Label>
-              <Input
-                id="timeline-start"
-                v-model="timelineInput.startTime"
-                type="time"
-                class="w-40"
-                aria-describedby="timeline-range-help"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <Label for="timeline-end">End Time</Label>
-              <Input
-                id="timeline-end"
-                v-model="timelineInput.endTime"
-                type="time"
-                class="w-40"
-                aria-describedby="timeline-range-help"
-                :aria-invalid="!timelineRangeValid"
-              />
-            </div>
-            <p
-              id="timeline-range-help"
-              class="font-mono text-[10px] text-muted-foreground"
-            >
-              Times use your local timezone. End time must be after start time.
-            </p>
-            <p
-              v-if="!timelineRangeValid"
-              role="alert"
-              class="font-mono text-[10px] text-destructive"
-            >
-              Choose an end time after the start time.
-            </p>
-          </div>
-        </fieldset>
-
-        <!-- SLA -->
-        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
-          >
-            SLA
-          </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Warning</Label>
-                <Tooltip
-                  text="PRs open longer than this are flagged as warning."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <select
-                v-model.number="slaWarningHoursInput"
-                class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option
-                  v-for="opt in warningOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Breach</Label>
-                <Tooltip
-                  text="PRs open longer than this are flagged as breach."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <select
-                v-model.number="slaBreachHoursInput"
-                class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option
-                  v-for="opt in breachOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Comment Fire</Label>
-                <Tooltip
-                  text="PRs with at least this many comments show a fire indicator."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <Input
-                v-model="commentFireThresholdInput"
-                type="number"
-                min="1"
-                placeholder="10"
-                class="w-40"
-              />
-            </div>
-          </div>
-        </fieldset>
-
-        <!-- PR List -->
-        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
-          >
-            PR List
-          </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Hide Drafts</Label>
-                <Tooltip
-                  text='Hide draft PRs when the "All" filter is active.'
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="hideDraftsInAllInput" size="sm" />
-              </label>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Hide Merged</Label>
-                <Tooltip
-                  text='Hide merged PRs when the "All" filter is active.'
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="hideMergedInAllInput" size="sm" />
-              </label>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Hide Closed</Label>
-                <Tooltip
-                  text='Hide closed (not merged) PRs when the "All" filter is active.'
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <label class="flex w-40 cursor-pointer items-center">
-                <Switch v-model="hideClosedInAllInput" size="sm" />
-              </label>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>Title Filter</Label>
-                <Tooltip
-                  text="Regex — PRs with matching titles are hidden from the table and stats."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <div class="w-40">
-                <Input
-                  v-model="titleFilterInput"
-                  type="text"
-                  placeholder="e.g. ^WIP"
-                  :class="!titleFilterValid ? 'border-destructive' : ''"
-                />
-                <p
-                  v-if="!titleFilterValid"
-                  class="mt-0.5 font-mono text-[10px] text-destructive"
-                >
-                  Invalid regex.
-                </p>
-              </div>
-            </div>
-          </div>
-        </fieldset>
-
-        <!-- Notifications -->
-        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
-          >
-            Notifications
-          </legend>
+      <div class="min-h-0 overflow-y-auto overscroll-contain">
+        <TabsContent
+          value="dashboard"
+          class="grid items-start gap-3 sm:grid-cols-2"
+        >
           <div class="space-y-3">
-            <!-- New PR -->
-            <div class="space-y-2">
-              <p class="font-mono text-[10px] text-muted-foreground">New PR</p>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Sound</Label>
-                  <Tooltip
-                    text="Play a sound when a new PR is detected."
-                    :delay="300"
+            <!-- Sync -->
+            <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+              <legend
+                class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+              >
+                Sync
+              </legend>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Poll Interval</Label>
+                    <Tooltip
+                      text="How often to refresh pull requests."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <select
+                    v-model.number="pollIntervalInput"
+                    class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
+                    <option
+                      v-for="opt in POLL_INTERVAL_OPTIONS"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
                 </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="prSoundEnabledInput" size="sm" />
-                </label>
               </div>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Voice</Label>
-                  <Tooltip
-                    text="Speak an announcement when a new PR is opened. Requires sound and an OpenAI API key."
-                    :delay="300"
-                  >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
-                </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="prTtsEnabledInput" size="sm" />
-                </label>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Custom sound</Label>
-                  <Tooltip
-                    text="Looks for a pr_open.mp3 file in a [author]/pulldog-sounds repo"
-                    :delay="300"
-                  >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
-                </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="customPrSoundEnabledInput" size="sm" />
-                </label>
-              </div>
-            </div>
+            </fieldset>
 
-            <div class="border-t border-border" />
-
-            <!-- Merge -->
-            <div class="space-y-2">
-              <p class="font-mono text-[10px] text-muted-foreground">Merge</p>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Confetti</Label>
-                  <Tooltip
-                    text="Show a confetti animation when a PR is merged."
-                    :delay="300"
+            <!-- SLA -->
+            <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+              <legend
+                class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+              >
+                SLA
+              </legend>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Warning</Label>
+                    <Tooltip
+                      text="PRs open longer than this are flagged as warning."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <select
+                    v-model.number="slaWarningHoursInput"
+                    class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
+                    <option
+                      v-for="opt in warningOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
                 </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="confettiEnabledInput" size="sm" />
-                </label>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Sound</Label>
-                  <Tooltip
-                    text="Play a sound when a PR is merged."
-                    :delay="300"
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Breach</Label>
+                    <Tooltip
+                      text="PRs open longer than this are flagged as breach."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <select
+                    v-model.number="slaBreachHoursInput"
+                    class="w-40 rounded border border-input bg-background px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
+                    <option
+                      v-for="opt in breachOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
                 </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="mergeSoundEnabledInput" size="sm" />
-                </label>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Voice</Label>
-                  <Tooltip
-                    text="Speak an announcement when a PR is merged. Requires sound and an OpenAI API key."
-                    :delay="300"
-                  >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Comment Fire</Label>
+                    <Tooltip
+                      text="PRs with at least this many comments show a fire indicator."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Input
+                    v-model="commentFireThresholdInput"
+                    type="number"
+                    min="1"
+                    placeholder="10"
+                    class="w-40"
+                  />
                 </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="ttsEnabledInput" size="sm" />
-                </label>
               </div>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Custom sound</Label>
-                  <Tooltip
-                    text="Looks for a pr_merged.mp3 file in a [author]/pulldog-sounds repo"
-                    :delay="300"
-                  >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
-                </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="customSoundEnabledInput" size="sm" />
-                </label>
-              </div>
-            </div>
-
-            <div class="border-t border-border" />
-
-            <!-- Closed -->
-            <div class="space-y-2">
-              <p class="font-mono text-[10px] text-muted-foreground">Closed</p>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Sound</Label>
-                  <Tooltip
-                    text="Play a sound when a PR is closed without merging."
-                    :delay="300"
-                  >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
-                </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="closeSoundEnabledInput" size="sm" />
-                </label>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-1.5">
-                  <Label>Custom sound</Label>
-                  <Tooltip
-                    text="Looks for a pr_closed.mp3 file in a [author]/pulldog-sounds repo"
-                    :delay="300"
-                  >
-                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                  </Tooltip>
-                </div>
-                <label class="flex w-40 cursor-pointer items-center">
-                  <Switch v-model="customClosePrSoundEnabledInput" size="sm" />
-                </label>
-              </div>
-            </div>
+            </fieldset>
           </div>
-        </fieldset>
+          <div class="space-y-3">
+            <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+              <legend
+                class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+              >
+                Timeline
+              </legend>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-3">
+                  <Label for="timeline-enabled">Show Timeline</Label>
+                  <div class="w-40">
+                    <Switch
+                      id="timeline-enabled"
+                      v-model="timelineInput.enabled"
+                      size="sm"
+                    />
+                  </div>
+                </div>
+                <template v-if="timelineInput.enabled">
+                  <div class="flex items-center justify-between gap-3">
+                    <Label for="timeline-start">Start Time</Label>
+                    <Input
+                      id="timeline-start"
+                      v-model="timelineInput.startTime"
+                      type="time"
+                      class="w-40"
+                      aria-describedby="timeline-range-help"
+                    />
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <Label for="timeline-end">End Time</Label>
+                    <Input
+                      id="timeline-end"
+                      v-model="timelineInput.endTime"
+                      type="time"
+                      class="w-40"
+                      aria-describedby="timeline-range-help"
+                      :aria-invalid="!timelineRangeValid"
+                    />
+                  </div>
+                  <p
+                    id="timeline-range-help"
+                    class="font-mono text-[10px] text-muted-foreground"
+                  >
+                    Times use your local timezone. End time must be after start
+                    time.
+                  </p>
+                  <p
+                    v-if="!timelineRangeValid"
+                    role="alert"
+                    class="font-mono text-[10px] text-destructive"
+                  >
+                    Choose an end time after the start time.
+                  </p>
+                </template>
+              </div>
+            </fieldset>
 
-        <!-- Text-to-speech -->
-        <fieldset
-          v-if="!hasEnvOpenaiKey"
-          class="rounded border border-border px-3 pb-2.5 pt-1"
-        >
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+            <!-- PR List -->
+            <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+              <legend
+                class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+              >
+                PR List
+              </legend>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Hide Drafts</Label>
+                    <Tooltip
+                      text='Hide draft PRs when the "All" filter is active.'
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex w-40 cursor-pointer items-center">
+                    <Switch v-model="hideDraftsInAllInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Hide Merged</Label>
+                    <Tooltip
+                      text='Hide merged PRs when the "All" filter is active.'
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex w-40 cursor-pointer items-center">
+                    <Switch v-model="hideMergedInAllInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Hide Closed</Label>
+                    <Tooltip
+                      text='Hide closed (not merged) PRs when the "All" filter is active.'
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex w-40 cursor-pointer items-center">
+                    <Switch v-model="hideClosedInAllInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Title Filter</Label>
+                    <Tooltip
+                      text="Regex — PRs with matching titles are hidden from the table and stats."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <div class="w-40">
+                    <Input
+                      v-model="titleFilterInput"
+                      type="text"
+                      placeholder="e.g. ^WIP"
+                      :class="!titleFilterValid ? 'border-destructive' : ''"
+                    />
+                    <p
+                      v-if="!titleFilterValid"
+                      class="mt-0.5 font-mono text-[10px] text-destructive"
+                    >
+                      Invalid regex.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </TabsContent>
+        <TabsContent value="notifications">
+          <!-- Notifications -->
+          <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+            <legend
+              class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+            >
+              Notifications
+            </legend>
+            <div class="grid gap-4 sm:grid-cols-3">
+              <!-- New PR -->
+              <div class="space-y-2">
+                <p class="font-mono text-[10px] text-muted-foreground">
+                  New PR
+                </p>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Sound</Label>
+                    <Tooltip
+                      text="Play a sound when a new PR is detected."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="prSoundEnabledInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Voice</Label>
+                    <Tooltip
+                      text="Speak an announcement when a new PR is opened. Requires sound and an OpenAI API key."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="prTtsEnabledInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Custom sound</Label>
+                    <Tooltip
+                      text="Looks for a pr_open.mp3 file in a [author]/pulldog-sounds repo"
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="customPrSoundEnabledInput" size="sm" />
+                  </label>
+                </div>
+              </div>
+
+              <!-- Merge -->
+              <div class="space-y-2">
+                <p class="font-mono text-[10px] text-muted-foreground">Merge</p>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Sound</Label>
+                    <Tooltip
+                      text="Play a sound when a PR is merged."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="mergeSoundEnabledInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Voice</Label>
+                    <Tooltip
+                      text="Speak an announcement when a PR is merged. Requires sound and an OpenAI API key."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="ttsEnabledInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Custom sound</Label>
+                    <Tooltip
+                      text="Looks for a pr_merged.mp3 file in a [author]/pulldog-sounds repo"
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="customSoundEnabledInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Confetti</Label>
+                    <Tooltip
+                      text="Show a confetti animation when a PR is merged."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="confettiEnabledInput" size="sm" />
+                  </label>
+                </div>
+              </div>
+
+              <!-- Closed -->
+              <div class="space-y-2">
+                <p class="font-mono text-[10px] text-muted-foreground">
+                  Closed
+                </p>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Sound</Label>
+                    <Tooltip
+                      text="Play a sound when a PR is closed without merging."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch v-model="closeSoundEnabledInput" size="sm" />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="close-tts-enabled">Voice</Label>
+                    <Tooltip
+                      text="Speak an announcement when a PR is closed without merging. Requires sound and an OpenAI API key."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="close-tts-enabled"
+                    v-model="closeTtsEnabledInput"
+                    size="sm"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label>Custom sound</Label>
+                    <Tooltip
+                      text="Looks for a pr_closed.mp3 file in a [author]/pulldog-sounds repo"
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <label class="flex shrink-0 cursor-pointer items-center">
+                    <Switch
+                      v-model="customClosePrSoundEnabledInput"
+                      size="sm"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </TabsContent>
+        <TabsContent value="keys" class="space-y-3">
+          <!-- Text-to-speech -->
+          <fieldset
+            v-if="!hasEnvOpenaiKey"
+            class="rounded border border-border px-3 pb-2.5 pt-1"
           >
-            Text-to-speech
-          </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>OpenAI Key</Label>
-                <Tooltip
-                  text="Enables voice announcements. Saved to localStorage — sent only to api.openai.com."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <div class="w-40">
-                <Input
-                  v-model="openAIKeyInput"
-                  type="password"
-                  placeholder="sk-..."
-                  class="w-full"
-                />
+            <legend
+              class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+            >
+              Text-to-speech
+            </legend>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>OpenAI Key</Label>
+                  <Tooltip
+                    text="Enables voice announcements. Saved to localStorage — sent only to api.openai.com."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <div class="w-40">
+                  <Input
+                    v-model="openAIKeyInput"
+                    type="password"
+                    placeholder="sk-..."
+                    class="w-full"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </fieldset>
+          </fieldset>
 
-        <!-- Authentication -->
-        <fieldset
-          v-if="!hasEnvToken"
-          class="rounded border border-border px-3 pb-2.5 pt-1"
-        >
-          <legend
-            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+          <!-- Authentication -->
+          <fieldset
+            v-if="!hasEnvToken"
+            class="rounded border border-border px-3 pb-2.5 pt-1"
           >
-            Authentication
-          </legend>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-1.5">
-                <Label>GitHub Token</Label>
-                <Tooltip
-                  text="Saved to localStorage — never sent to any server."
-                  :delay="300"
-                >
-                  <Info class="h-3 w-3 cursor-help text-muted-foreground" />
-                </Tooltip>
-              </div>
-              <div class="flex w-40 gap-1">
-                <Input
-                  v-model="tokenInput"
-                  type="password"
-                  placeholder="ghp_..."
-                  class="min-w-0 flex-1"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  @click="fetchRepos(tokenInput.trim())"
-                >
-                  <RefreshCw class="h-3 w-3" />
-                </Button>
+            <legend
+              class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+            >
+              Authentication
+            </legend>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                  <Label>GitHub Token</Label>
+                  <Tooltip
+                    text="Saved to localStorage — never sent to any server."
+                    :delay="300"
+                  >
+                    <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                  </Tooltip>
+                </div>
+                <div class="flex w-40 gap-1">
+                  <Input
+                    v-model="tokenInput"
+                    type="password"
+                    placeholder="ghp_..."
+                    class="min-w-0 flex-1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    @click="fetchRepos(tokenInput.trim())"
+                  >
+                    <RefreshCw class="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </fieldset>
+          </fieldset>
+        </TabsContent>
       </div>
 
-      <div class="flex gap-2 pt-1">
+      <p
+        v-if="
+          activeTab !== 'dashboard' &&
+          (!titleFilterValid || !timelineRangeValid)
+        "
+        role="alert"
+        class="font-mono text-xs text-destructive"
+      >
+        Fix the invalid
+        {{ !titleFilterValid ? "title filter" : "timeline range" }} in Dashboard
+        before saving.
+      </p>
+      <div class="flex shrink-0 gap-2 border-t border-border pt-4">
         <Button variant="outline" class="flex-1" @click="$emit('close')">
           Cancel
         </Button>
@@ -706,6 +796,6 @@ function handleSave(): void {
           Save
         </Button>
       </div>
-    </div>
+    </TabsRoot>
   </Dialog>
 </template>
