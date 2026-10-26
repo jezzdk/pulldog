@@ -3,7 +3,11 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import type { PullRequest } from "@/types";
 import Tooltip from "@/components/ui/Tooltip.vue";
 
-const props = defineProps<{ prs: PullRequest[] }>();
+const props = defineProps<{
+  prs: PullRequest[];
+  startTime: string;
+  endTime: string;
+}>();
 const emit = defineEmits<{
   "play-opened-sound": [login: string];
   "play-merged-sound": [login: string];
@@ -23,29 +27,46 @@ onUnmounted(() => {
   }
 });
 
-// x-axis: midnight → midnight (local calendar day)
-const dayStart = computed(() => {
-  const d = new Date(now.value);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-});
-const DAY_MS = 86_400_000;
+function timeOnToday(time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = new Date(now.value);
+  date.setHours(hours!, minutes!, 0, 0);
+  return date;
+}
+
+const rangeStart = computed(() => timeOnToday(props.startTime).getTime());
+const rangeEnd = computed(() => timeOnToday(props.endTime).getTime());
 
 function toPct(date: Date): number {
-  return ((date.getTime() - dayStart.value) / DAY_MS) * 100;
+  return (
+    ((date.getTime() - rangeStart.value) /
+      (rangeEnd.value - rangeStart.value)) *
+    100
+  );
 }
 
 const nowPct = computed(() => toPct(now.value));
+const nowVisible = computed(() => nowPct.value >= 0 && nowPct.value <= 100);
+const hourTicks = computed(() => {
+  const ticks: Date[] = [];
 
-const TICK_HOURS = [0, 3, 6, 9, 12, 15, 18, 21, 24] as const;
-const LABEL_HOURS = new Set([3, 6, 9, 12, 15, 18, 21]);
+  for (let hour = 0; hour < 24; hour++) {
+    const date = new Date(now.value);
+    date.setHours(hour, 0, 0, 0);
 
-function hourLabel(h: number): string {
-  if (h === 12) {
-    return "12pm";
+    if (date.getTime() > rangeStart.value && date.getTime() < rangeEnd.value) {
+      ticks.push(date);
+    }
   }
 
-  return h < 12 ? `${h}am` : `${h - 12}pm`;
+  return ticks;
+});
+const labelInterval = computed(() =>
+  Math.ceil((rangeEnd.value - rangeStart.value) / 3_600_000 / 8),
+);
+
+function hourLabel(hour: number): string {
+  return `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`;
 }
 
 function timeLabel(date: Date): string {
@@ -66,8 +87,8 @@ type TlEvent = {
 };
 
 const events = computed<TlEvent[]>(() => {
-  const start = dayStart.value;
-  const end = start + DAY_MS;
+  const start = rangeStart.value;
+  const end = rangeEnd.value;
   const raw: Omit<TlEvent, "row">[] = [];
 
   for (const pr of props.prs) {
@@ -151,11 +172,11 @@ function playEventSound(event: TlEvent): void {
     </span>
 
     <!-- Hourly vertical lines -->
-    <template v-for="h in 23" :key="`hour-${h}`">
+    <template v-for="tick in hourTicks" :key="`hour-${tick.getHours()}`">
       <div
         class="absolute top-0 w-px bg-muted-foreground/10 pointer-events-none"
         :style="{
-          left: `${(h / 24) * 100}%`,
+          left: `${toPct(tick)}%`,
           bottom: `${TRACK_BOTTOM}px`,
         }"
       />
@@ -168,31 +189,33 @@ function playEventSound(event: TlEvent): void {
     />
 
     <!-- Hour ticks + labels -->
-    <template v-for="h in TICK_HOURS" :key="`tick-${h}`">
+    <template v-for="tick in hourTicks" :key="`tick-${tick.getHours()}`">
       <div
         class="absolute w-px bg-muted-foreground/20"
         :style="{
-          left: `${(h / 24) * 100}%`,
+          left: `${toPct(tick)}%`,
           bottom: `${TRACK_BOTTOM - 1}px`,
           height: '5px',
         }"
       />
       <div
-        v-if="LABEL_HOURS.has(h)"
+        v-if="tick.getHours() % labelInterval === 0"
         class="absolute -translate-x-1/2 font-mono text-[9px] text-muted-foreground/50 select-none"
-        :style="{ left: `${(h / 24) * 100}%`, bottom: '4px' }"
+        :style="{ left: `${toPct(tick)}%`, bottom: '4px' }"
       >
-        {{ hourLabel(h) }}
+        {{ hourLabel(tick.getHours()) }}
       </div>
     </template>
 
     <!-- Current time line -->
     <div
+      v-if="nowVisible"
       class="absolute top-0 bottom-0 w-px bg-foreground pointer-events-none z-10"
       :style="{ left: `${nowPct}%` }"
     />
     <!-- Now dot -->
     <div
+      v-if="nowVisible"
       class="absolute w-1.5 h-1.5 rounded-full bg-foreground -translate-x-1/2 z-10"
       :style="{ left: `${nowPct}%`, top: '0' }"
     />

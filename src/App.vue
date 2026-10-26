@@ -13,6 +13,10 @@ import {
   SLA_BREACH_KEY,
 } from "@/composables/useSla";
 import type { SlaStatus, StatPeriod } from "@/types";
+import {
+  useTimelineSettings,
+  type TimelineSettings,
+} from "@/composables/useTimelineSettings";
 import { useTheme } from "@/composables/useTheme";
 import { useConfetti } from "@/composables/useConfetti";
 import { usePersistedRepos, REPOS_KEY } from "@/composables/usePersistedRepos";
@@ -78,12 +82,8 @@ const {
 const TITLE_FILTER_KEY = "pulldog-title-filter";
 const titleFilterRegex = ref(localStorage.getItem(TITLE_FILTER_KEY) ?? "");
 
-const TIMELINE_OPEN_KEY = "pulldog-timeline-open";
-const timelineOpen = ref(localStorage.getItem(TIMELINE_OPEN_KEY) === "true");
-function toggleTimeline(): void {
-  timelineOpen.value = !timelineOpen.value;
-  localStorage.setItem(TIMELINE_OPEN_KEY, String(timelineOpen.value));
-}
+const { settings: timelineSettings, save: saveTimelineSettings } =
+  useTimelineSettings();
 
 const HIDE_DRAFTS_IN_ALL_KEY = "pulldog-hide-drafts-in-all";
 const HIDE_MERGED_IN_ALL_KEY = "pulldog-hide-merged-in-all";
@@ -909,8 +909,13 @@ function handleSaveSettings(
   newCustomPrSoundEnabled?: boolean,
   newCustomClosePrSoundEnabled?: boolean,
   newOpenAIKey?: string,
+  newTimelineSettings?: TimelineSettings,
 ): void {
   showSettings.value = false;
+
+  if (newTimelineSettings) {
+    saveTimelineSettings(newTimelineSettings);
+  }
 
   if (newToken !== undefined) {
     token.value = newToken;
@@ -1156,8 +1161,6 @@ onMounted(async () => {
       :repo-options="repoOptions"
       :author-options="authorOptions"
       :author-avatars="authorAvatars"
-      :timeline-open="timelineOpen"
-      @toggle-timeline="toggleTimeline"
     />
 
     <SummaryBar
@@ -1218,7 +1221,9 @@ onMounted(async () => {
 
         <!-- Day timeline -->
         <DayTimeline
-          v-if="timelineOpen"
+          v-if="timelineSettings.enabled"
+          :start-time="timelineSettings.startTime"
+          :end-time="timelineSettings.endTime"
           :prs="allPRs"
           @play-opened-sound="playNewPR"
           @play-merged-sound="playMerged"
@@ -1335,6 +1340,7 @@ onMounted(async () => {
       :current-token="token"
       :has-env-openai-key="hasEnvOpenAIKey"
       :current-openai-key="openAIKey"
+      :current-timeline-settings="timelineSettings"
       :current-title-filter="titleFilterRegex"
       :current-poll-interval="pollIntervalS"
       :current-sla-warning-hours="slaWarningHours"

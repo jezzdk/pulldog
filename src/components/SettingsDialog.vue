@@ -8,6 +8,8 @@ import Tooltip from "@/components/ui/Tooltip.vue";
 import { RefreshCw, Info } from "lucide-vue-next";
 import Switch from "@/components/ui/Switch.vue";
 
+import type { TimelineSettings } from "@/composables/useTimelineSettings";
+
 type Option = { label: string; value: number };
 
 const POLL_INTERVAL_OPTIONS: Option[] = [
@@ -40,6 +42,7 @@ const props = defineProps<{
   hasEnvOpenaiKey: boolean;
   currentOpenaiKey: string;
   currentTitleFilter: string;
+  currentTimelineSettings: TimelineSettings;
   currentPollInterval: number;
   currentSlaWarningHours: number;
   currentSlaBreachHours: number;
@@ -81,8 +84,16 @@ const emit = defineEmits<{
     newCustomPrSoundEnabled?: boolean,
     newCustomClosePrSoundEnabled?: boolean,
     openAIKey?: string,
+    timelineSettings?: TimelineSettings,
   ];
 }>();
+
+const timelineInput = ref({ ...props.currentTimelineSettings });
+const timelineRangeValid = computed(
+  () =>
+    Boolean(timelineInput.value.startTime && timelineInput.value.endTime) &&
+    timelineInput.value.startTime < timelineInput.value.endTime,
+);
 
 const tokenInput = ref(props.currentToken);
 const openAIKeyInput = ref(props.currentOpenaiKey);
@@ -112,6 +123,7 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
+      timelineInput.value = { ...props.currentTimelineSettings };
       tokenInput.value = props.currentToken;
       openAIKeyInput.value = props.currentOpenaiKey;
       titleFilterInput.value = props.currentTitleFilter;
@@ -201,6 +213,7 @@ function handleSave(): void {
     customPrSoundEnabledInput.value,
     customClosePrSoundEnabledInput.value,
     props.hasEnvOpenaiKey ? undefined : openAIKeyInput.value.trim(),
+    { ...timelineInput.value },
   );
 }
 </script>
@@ -242,6 +255,60 @@ function handleSave(): void {
                 </option>
               </select>
             </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="rounded border border-border px-3 pb-2.5 pt-1">
+          <legend
+            class="px-1 font-mono text-[10px] font-medium text-muted-foreground"
+          >
+            Timeline
+          </legend>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <Label for="timeline-enabled">Show Timeline</Label>
+              <div class="w-40">
+                <Switch
+                  id="timeline-enabled"
+                  v-model="timelineInput.enabled"
+                  size="sm"
+                />
+              </div>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <Label for="timeline-start">Start Time</Label>
+              <Input
+                id="timeline-start"
+                v-model="timelineInput.startTime"
+                type="time"
+                class="w-40"
+                aria-describedby="timeline-range-help"
+              />
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <Label for="timeline-end">End Time</Label>
+              <Input
+                id="timeline-end"
+                v-model="timelineInput.endTime"
+                type="time"
+                class="w-40"
+                aria-describedby="timeline-range-help"
+                :aria-invalid="!timelineRangeValid"
+              />
+            </div>
+            <p
+              id="timeline-range-help"
+              class="font-mono text-[10px] text-muted-foreground"
+            >
+              Times use your local timezone. End time must be after start time.
+            </p>
+            <p
+              v-if="!timelineRangeValid"
+              role="alert"
+              class="font-mono text-[10px] text-destructive"
+            >
+              Choose an end time after the start time.
+            </p>
           </div>
         </fieldset>
 
@@ -633,7 +700,7 @@ function handleSave(): void {
         </Button>
         <Button
           class="flex-1"
-          :disabled="!titleFilterValid"
+          :disabled="!titleFilterValid || !timelineRangeValid"
           @click="handleSave"
         >
           Save
