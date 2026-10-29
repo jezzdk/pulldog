@@ -58,6 +58,9 @@ const props = defineProps<{
   currentPrSoundEnabled: boolean;
   currentMergeSoundEnabled: boolean;
   currentCloseSoundEnabled: boolean;
+  currentApprovalTtsEnabled: boolean;
+  currentApprovalSoundEnabled: boolean;
+  currentCustomApprovalSoundEnabled: boolean;
   currentCustomSoundEnabled: boolean;
   currentCustomPrSoundEnabled: boolean;
   currentCustomClosePrSoundEnabled: boolean;
@@ -88,6 +91,9 @@ const emit = defineEmits<{
     openAIKey?: string,
     timelineSettings?: TimelineSettings,
     closeTtsEnabled?: boolean,
+    approvalSoundEnabled?: boolean,
+    customApprovalSoundEnabled?: boolean,
+    approvalTtsEnabled?: boolean,
   ];
 }>();
 
@@ -126,6 +132,11 @@ const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
 const closeTtsEnabledInput = ref(props.currentCloseTtsEnabled);
 const prSoundEnabledInput = ref(props.currentPrSoundEnabled);
 const mergeSoundEnabledInput = ref(props.currentMergeSoundEnabled);
+const approvalTtsEnabledInput = ref(props.currentApprovalTtsEnabled);
+const approvalSoundEnabledInput = ref(props.currentApprovalSoundEnabled);
+const customApprovalSoundEnabledInput = ref(
+  props.currentCustomApprovalSoundEnabled,
+);
 const closeSoundEnabledInput = ref(props.currentCloseSoundEnabled);
 const customSoundEnabledInput = ref(props.currentCustomSoundEnabled);
 const customPrSoundEnabledInput = ref(props.currentCustomPrSoundEnabled);
@@ -158,6 +169,10 @@ watch(
       prSoundEnabledInput.value = props.currentPrSoundEnabled;
       mergeSoundEnabledInput.value = props.currentMergeSoundEnabled;
       closeSoundEnabledInput.value = props.currentCloseSoundEnabled;
+      approvalTtsEnabledInput.value = props.currentApprovalTtsEnabled;
+      approvalSoundEnabledInput.value = props.currentApprovalSoundEnabled;
+      customApprovalSoundEnabledInput.value =
+        props.currentCustomApprovalSoundEnabled;
       customSoundEnabledInput.value = props.currentCustomSoundEnabled;
       customPrSoundEnabledInput.value = props.currentCustomPrSoundEnabled;
       customClosePrSoundEnabledInput.value =
@@ -184,6 +199,17 @@ watch(ttsEnabledInput, (v) => {
 watch(customSoundEnabledInput, (v) => {
   if (v) {
     ttsEnabledInput.value = false;
+  }
+});
+
+watch(approvalTtsEnabledInput, (enabled) => {
+  if (enabled) {
+    customApprovalSoundEnabledInput.value = false;
+  }
+});
+watch(customApprovalSoundEnabledInput, (enabled) => {
+  if (enabled) {
+    approvalTtsEnabledInput.value = false;
   }
 });
 
@@ -242,6 +268,9 @@ function handleSave(): void {
     props.hasEnvOpenaiKey ? undefined : openAIKeyInput.value.trim(),
     { ...timelineInput.value },
     closeTtsEnabledInput.value,
+    approvalSoundEnabledInput.value,
+    customApprovalSoundEnabledInput.value,
+    approvalTtsEnabledInput.value,
   );
 }
 </script>
@@ -529,7 +558,7 @@ function handleSave(): void {
             >
               Notifications
             </legend>
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div class="grid grid-cols-2 gap-4">
               <!-- New PR -->
               <div class="space-y-2">
                 <p class="font-mono text-[10px] text-muted-foreground">
@@ -579,9 +608,65 @@ function handleSave(): void {
                 </div>
               </div>
 
+              <div class="space-y-2">
+                <p class="font-mono text-[10px] text-muted-foreground">
+                  Approved
+                </p>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="approval-sound-enabled">Sound</Label>
+                    <Tooltip
+                      text="Play a sound when a PR changes to approved on refresh."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="approval-sound-enabled"
+                    v-model="approvalSoundEnabledInput"
+                    size="sm"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="approval-tts-enabled">Voice</Label>
+                    <Tooltip
+                      text="Speak an announcement when a PR is approved. Requires sound and an OpenAI API key."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="approval-tts-enabled"
+                    v-model="approvalTtsEnabledInput"
+                    size="sm"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="custom-approval-sound-enabled"
+                      >Custom sound</Label
+                    >
+                    <Tooltip
+                      text="Looks for pr_approved.mp3 in the PR author's pulldog-sounds repo. Falls back to the built-in sound."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="custom-approval-sound-enabled"
+                    v-model="customApprovalSoundEnabledInput"
+                    size="sm"
+                  />
+                </div>
+              </div>
+
               <!-- Merge -->
               <div class="space-y-2">
-                <p class="font-mono text-[10px] text-muted-foreground">Merge</p>
+                <p class="font-mono text-[10px] text-muted-foreground">Merged</p>
                 <div class="flex items-center justify-between gap-3">
                   <div class="flex items-center gap-1.5">
                     <Label>Sound</Label>

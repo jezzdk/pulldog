@@ -3,9 +3,13 @@ import { ref, type Ref } from "vue";
 import { useOpenAI } from "./useOpenAI";
 import openPrUrl from "@/assets/open_pr.mp3?url";
 import mergedPrUrl from "@/assets/merged_pr.mp3?url";
+import approvedPrUrl from "@/assets/approved_pr.mp3?url";
 import closedPrUrl from "@/assets/closed_pr.mp3?url";
 
+type SoundEvent = "open" | "approved" | "merged" | "closed";
+
 interface UseAudioReturn {
+  playTestSound: (event: SoundEvent, authorName: string) => Promise<void>;
   soundEnabled: Ref<boolean>;
   ttsEnabled: Ref<boolean>;
   prTtsEnabled: Ref<boolean>;
@@ -13,6 +17,9 @@ interface UseAudioReturn {
   prSoundEnabled: Ref<boolean>;
   mergeSoundEnabled: Ref<boolean>;
   closeSoundEnabled: Ref<boolean>;
+  approvalTtsEnabled: Ref<boolean>;
+  approvalSoundEnabled: Ref<boolean>;
+  customApprovalSoundEnabled: Ref<boolean>;
   customSoundEnabled: Ref<boolean>;
   customPrSoundEnabled: Ref<boolean>;
   customClosePrSoundEnabled: Ref<boolean>;
@@ -21,6 +28,9 @@ interface UseAudioReturn {
   togglePrTts: () => void;
   togglePrSound: () => void;
   toggleMergeSound: () => void;
+  toggleApprovalTts: () => void;
+  toggleApprovalSound: () => void;
+  toggleCustomApprovalSound: () => void;
   toggleCloseSound: () => void;
   toggleCustomSound: () => void;
   toggleCustomPrSound: () => void;
@@ -28,7 +38,9 @@ interface UseAudioReturn {
   playNewPR: (authorName: string) => Promise<void>;
   playMerged: (authorName: string) => Promise<void>;
   playClosed: (authorName: string) => Promise<void>;
+  playApproved: (authorName: string) => Promise<void>;
   playDefaultNewPR: () => Promise<void>;
+  playDefaultApprovedPR: () => Promise<void>;
   playDefaultMerged: () => Promise<void>;
   playDefaultClosed: () => Promise<void>;
 }
@@ -37,12 +49,15 @@ const STORAGE_KEY = "pulldog-sound";
 const TTS_STORAGE_KEY = "pulldog-tts-enabled";
 const CLOSE_TTS_KEY = "pulldog-close-tts-enabled";
 const PR_TTS_KEY = "pulldog-pr-tts-enabled";
+const APPROVAL_TTS_KEY = "pulldog-approval-tts-enabled";
 const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
 const CLOSE_SOUND_KEY = "pulldog-close-sound-enabled";
+const APPROVAL_SOUND_KEY = "pulldog-approval-sound-enabled";
 const CUSTOM_SOUND_KEY = "pulldog-custom-sound-enabled";
 const CUSTOM_PR_SOUND_KEY = "pulldog-custom-pr-sound-enabled";
 const CUSTOM_CLOSE_PR_SOUND_KEY = "pulldog-custom-close-pr-sound-enabled";
+const CUSTOM_APPROVAL_SOUND_KEY = "pulldog-custom-approval-sound-enabled";
 /** Max playback length for per-author custom MP3s (built-in sounds play full length). */
 const CUSTOM_SOUND_MAX_SEC = 10;
 
@@ -51,12 +66,18 @@ export function useAudio(): UseAudioReturn {
   const ttsEnabled = ref(localStorage.getItem(TTS_STORAGE_KEY) === "true");
   const prTtsEnabled = ref(localStorage.getItem(PR_TTS_KEY) === "true");
   const closeTtsEnabled = ref(localStorage.getItem(CLOSE_TTS_KEY) === "true");
+  const approvalTtsEnabled = ref(
+    localStorage.getItem(APPROVAL_TTS_KEY) === "true",
+  );
   const prSoundEnabled = ref(localStorage.getItem(PR_SOUND_KEY) !== "false");
   const mergeSoundEnabled = ref(
     localStorage.getItem(MERGE_SOUND_KEY) !== "false",
   );
   const closeSoundEnabled = ref(
     localStorage.getItem(CLOSE_SOUND_KEY) !== "false",
+  );
+  const approvalSoundEnabled = ref(
+    localStorage.getItem(APPROVAL_SOUND_KEY) !== "false",
   );
   const customSoundEnabled = ref(
     localStorage.getItem(CUSTOM_SOUND_KEY) === "true",
@@ -66,6 +87,9 @@ export function useAudio(): UseAudioReturn {
   );
   const customClosePrSoundEnabled = ref(
     localStorage.getItem(CUSTOM_CLOSE_PR_SOUND_KEY) === "true",
+  );
+  const customApprovalSoundEnabled = ref(
+    localStorage.getItem(CUSTOM_APPROVAL_SOUND_KEY) === "true",
   );
   let audioCtx: AudioContext | null = null;
   const bufferCache = new Map<string, AudioBuffer>();
@@ -99,8 +123,43 @@ export function useAudio(): UseAudioReturn {
     }
   }
 
+  async function playTestSound(
+    event: SoundEvent,
+    authorName: string,
+  ): Promise<void> {
+    if (!soundEnabled.value) {
+      return;
+    }
+
+    const defaultUrl = {
+      open: openPrUrl,
+      approved: approvedPrUrl,
+      merged: mergedPrUrl,
+      closed: closedPrUrl,
+    }[event];
+    const author = authorName.trim();
+
+    if (author) {
+      try {
+        const buffer = await loadBuffer(
+          `https://raw.githubusercontent.com/${author}/pulldog-sounds/main/pr_${event}.mp3`,
+        );
+        playBuffer(buffer, CUSTOM_SOUND_MAX_SEC);
+        return;
+      } catch (_) {
+        // Preview the built-in sound when the author's file is unavailable.
+      }
+    }
+
+    await playDefaultSound(defaultUrl);
+  }
+
   function playDefaultNewPR(): Promise<void> {
     return playDefaultSound(openPrUrl);
+  }
+
+  function playDefaultApprovedPR(): Promise<void> {
+    return playDefaultSound(approvedPrUrl);
   }
 
   function playDefaultMerged(): Promise<void> {
@@ -121,6 +180,44 @@ export function useAudio(): UseAudioReturn {
     }
 
     return audioCtx;
+  }
+
+  async function playApproved(authorName: string): Promise<void> {
+    if (!soundEnabled.value) {
+      return;
+    }
+
+    if (approvalSoundEnabled.value) {
+      try {
+        const customUrl =
+          customApprovalSoundEnabled.value && authorName
+            ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_approved.mp3`
+            : null;
+        const buffer = customUrl
+          ? await loadBuffer(customUrl).catch(() => loadBuffer(approvedPrUrl))
+          : await loadBuffer(approvedPrUrl);
+        playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
+      } catch (_) {
+        /* approval sound unavailable */
+      }
+    }
+
+    if (!approvalTtsEnabled.value) {
+      return;
+    }
+
+    try {
+      const { textToSpeech } = useOpenAI();
+      const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+      const voice = voices[Math.floor(Math.random() * voices.length)]!;
+      const audioBuffer = await textToSpeech(
+        `A pull request by ${authorName} was approved`,
+        voice,
+      );
+      playBuffer(await ctx().decodeAudioData(audioBuffer));
+    } catch (_) {
+      /* TTS not available */
+    }
   }
 
   async function playNewPR(authorName: string): Promise<void> {
@@ -309,6 +406,27 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(MERGE_SOUND_KEY, String(mergeSoundEnabled.value));
   }
 
+  function toggleApprovalTts(): void {
+    approvalTtsEnabled.value = !approvalTtsEnabled.value;
+    localStorage.setItem(APPROVAL_TTS_KEY, String(approvalTtsEnabled.value));
+  }
+
+  function toggleApprovalSound(): void {
+    approvalSoundEnabled.value = !approvalSoundEnabled.value;
+    localStorage.setItem(
+      APPROVAL_SOUND_KEY,
+      String(approvalSoundEnabled.value),
+    );
+  }
+
+  function toggleCustomApprovalSound(): void {
+    customApprovalSoundEnabled.value = !customApprovalSoundEnabled.value;
+    localStorage.setItem(
+      CUSTOM_APPROVAL_SOUND_KEY,
+      String(customApprovalSoundEnabled.value),
+    );
+  }
+
   function toggleCloseSound(): void {
     closeSoundEnabled.value = !closeSoundEnabled.value;
     localStorage.setItem(CLOSE_SOUND_KEY, String(closeSoundEnabled.value));
@@ -351,6 +469,7 @@ export function useAudio(): UseAudioReturn {
   }
 
   return {
+    playTestSound,
     soundEnabled,
     ttsEnabled,
     prTtsEnabled,
@@ -358,6 +477,9 @@ export function useAudio(): UseAudioReturn {
     prSoundEnabled,
     mergeSoundEnabled,
     closeSoundEnabled,
+    approvalTtsEnabled,
+    approvalSoundEnabled,
+    customApprovalSoundEnabled,
     customSoundEnabled,
     customPrSoundEnabled,
     customClosePrSoundEnabled,
@@ -366,6 +488,9 @@ export function useAudio(): UseAudioReturn {
     togglePrTts,
     togglePrSound,
     toggleMergeSound,
+    toggleApprovalTts,
+    toggleApprovalSound,
+    toggleCustomApprovalSound,
     toggleCloseSound,
     toggleCustomSound,
     toggleCustomPrSound,
@@ -373,7 +498,9 @@ export function useAudio(): UseAudioReturn {
     playNewPR,
     playMerged,
     playClosed,
+    playApproved,
     playDefaultNewPR,
+    playDefaultApprovedPR,
     playDefaultMerged,
     playDefaultClosed,
   } as UseAudioReturn;

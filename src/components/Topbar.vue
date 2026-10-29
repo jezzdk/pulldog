@@ -32,10 +32,10 @@ defineProps<{
   rateLimitPaused: boolean;
   testMode: boolean;
   hasEnvToken: boolean;
-  onTestNewPr: () => void;
-  onTestMerged: () => void;
-  onTestClosed: () => void;
-  onTestMergedWithAuthor: (author: string) => void;
+  onTestNewPr: (author: string) => void;
+  onTestMerged: (author: string) => void;
+  onTestClosed: (author: string) => void;
+  onTestApproved: (author: string) => void;
 }>();
 
 defineEmits<{
@@ -169,7 +169,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       size="sm"
       class="h-6 px-2 font-mono text-[10px]"
       :disabled="!soundEnabled"
-      @click="onTestNewPr()"
+      @click="onTestNewPr(testUsername)"
     >
       🔔 new PR
     </Button>
@@ -178,7 +178,7 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       size="sm"
       class="h-6 px-2 font-mono text-[10px]"
       :disabled="!soundEnabled && !confettiEnabled"
-      @click="onTestMerged()"
+      @click="onTestMerged(testUsername)"
     >
       🎉 merge
     </Button>
@@ -187,26 +187,26 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       size="sm"
       class="h-6 px-2 font-mono text-[10px]"
       :disabled="!soundEnabled"
-      @click="onTestClosed()"
+      @click="onTestClosed(testUsername)"
     >
       🚫 closed
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-6 px-2 font-mono text-[10px]"
+      :disabled="!soundEnabled"
+      @click="onTestApproved(testUsername)"
+    >
+      ✅ approved
     </Button>
     <span class="font-mono text-[10px] text-muted-foreground/40 ml-2"
       >author:</span
     >
     <input
-      v-model="testUsername"
+      v-model.trim="testUsername"
       placeholder="github username"
       class="h-6 rounded border border-border bg-background px-2 font-mono text-[10px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
     />
-    <Button
-      variant="outline"
-      size="sm"
-      class="h-6 px-2 font-mono text-[10px]"
-      :disabled="!soundEnabled || !testUsername"
-      @click="onTestMergedWithAuthor(testUsername)"
-    >
-      ok
-    </Button>
   </div>
 </template>

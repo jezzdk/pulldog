@@ -183,6 +183,9 @@ const {
   prSoundEnabled,
   mergeSoundEnabled,
   closeSoundEnabled,
+  approvalTtsEnabled,
+  approvalSoundEnabled,
+  customApprovalSoundEnabled,
   customSoundEnabled,
   customPrSoundEnabled,
   customClosePrSoundEnabled,
@@ -190,46 +193,30 @@ const {
   playNewPR,
   playMerged,
   playClosed,
+  playApproved,
+  playTestSound,
   playDefaultNewPR,
   playDefaultMerged,
 } = useAudio();
 
-const testAuthors = [
-  "alice",
-  "bob",
-  "charlie",
-  "diana",
-  "eve",
-  "frank",
-  "grace",
-  "henry",
-];
-
-function playNewPRTest(): void {
-  const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
-  void playNewPR(author);
+function playNewPRTest(author: string): void {
+  void playTestSound("open", author);
 }
 
-function playMergedTest(): void {
-  const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
-  void playMerged(author);
+function playMergedTest(author: string): void {
+  void playTestSound("merged", author);
 
   if (confettiEnabled.value) {
     fireConfetti();
   }
 }
 
-function playMergedTestWithAuthor(author: string): void {
-  void playMerged(author);
-
-  if (confettiEnabled.value) {
-    fireConfetti();
-  }
+function playApprovedTest(author: string): void {
+  void playTestSound("approved", author);
 }
 
-function playClosedTest(): void {
-  const author = testAuthors[Math.floor(Math.random() * testAuthors.length)]!;
-  void playClosed(author);
+function playClosedTest(author: string): void {
+  void playTestSound("closed", author);
 }
 
 const tokenComputed = computed(() => token.value);
@@ -648,9 +635,11 @@ async function loadAll(isRefresh = false): Promise<void> {
   let shouldPlayDing = false;
   let shouldPlayGong = false;
   let shouldPlayClosed = false;
+  let shouldPlayApproved = false;
   let newPrAuthorName = "";
   let mergedAuthorName = "";
   let closedAuthorName = "";
+  let approvedAuthorName = "";
 
   for (let i = 0; i < results.length; i++) {
     const repo = repoList.value[i]!;
@@ -723,6 +712,16 @@ async function loadAll(isRefresh = false): Promise<void> {
               `PR closed · ${p.author.login}`,
               `${repo} #${p.number}: ${p.title}`,
             );
+          } else if (
+            prevStatus !== undefined &&
+            prevStatus !== "approved" &&
+            p.reviewStatus === "approved"
+          ) {
+            if (!shouldPlayApproved) {
+              approvedAuthorName = p.author.login;
+            }
+
+            shouldPlayApproved = true;
           }
         }
       }
@@ -748,6 +747,8 @@ async function loadAll(isRefresh = false): Promise<void> {
     void playNewPR(newPrAuthorName);
   } else if (shouldPlayClosed) {
     void playClosed(closedAuthorName);
+  } else if (shouldPlayApproved) {
+    void playApproved(approvedAuthorName);
   }
 
   if (!isRefresh && !anyOk) {
@@ -913,6 +914,9 @@ function handleSaveSettings(
   newOpenAIKey?: string,
   newTimelineSettings?: TimelineSettings,
   newCloseTtsEnabled?: boolean,
+  newApprovalSoundEnabled?: boolean,
+  newCustomApprovalSoundEnabled?: boolean,
+  newApprovalTtsEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -1001,6 +1005,30 @@ function handleSaveSettings(
     localStorage.setItem(
       "pulldog-close-tts-enabled",
       String(newCloseTtsEnabled),
+    );
+  }
+
+  if (newApprovalTtsEnabled !== undefined) {
+    approvalTtsEnabled.value = newApprovalTtsEnabled;
+    localStorage.setItem(
+      "pulldog-approval-tts-enabled",
+      String(newApprovalTtsEnabled),
+    );
+  }
+
+  if (newApprovalSoundEnabled !== undefined) {
+    approvalSoundEnabled.value = newApprovalSoundEnabled;
+    localStorage.setItem(
+      "pulldog-approval-sound-enabled",
+      String(newApprovalSoundEnabled),
+    );
+  }
+
+  if (newCustomApprovalSoundEnabled !== undefined) {
+    customApprovalSoundEnabled.value = newCustomApprovalSoundEnabled;
+    localStorage.setItem(
+      "pulldog-custom-approval-sound-enabled",
+      String(newCustomApprovalSoundEnabled),
     );
   }
 
@@ -1151,7 +1179,7 @@ onMounted(async () => {
       :on-test-new-pr="playNewPRTest"
       :on-test-merged="playMergedTest"
       :on-test-closed="playClosedTest"
-      :on-test-merged-with-author="playMergedTestWithAuthor"
+      :on-test-approved="playApprovedTest"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
       @open-repos="showRepos = true"
@@ -1367,6 +1395,9 @@ onMounted(async () => {
       :current-pr-sound-enabled="prSoundEnabled"
       :current-merge-sound-enabled="mergeSoundEnabled"
       :current-close-sound-enabled="closeSoundEnabled"
+      :current-approval-tts-enabled="approvalTtsEnabled"
+      :current-approval-sound-enabled="approvalSoundEnabled"
+      :current-custom-approval-sound-enabled="customApprovalSoundEnabled"
       :current-custom-sound-enabled="customSoundEnabled"
       :current-custom-pr-sound-enabled="customPrSoundEnabled"
       :current-custom-close-pr-sound-enabled="customClosePrSoundEnabled"
