@@ -1,21 +1,56 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import type { PullRequest } from "@/types";
+import { ChevronLeft, ChevronRight } from "lucide-vue-next";
+import Button from "@/components/ui/Button.vue";
+import type { PullRequest, ReviewStatus } from "@/types";
 import Tooltip from "@/components/ui/Tooltip.vue";
 import { cn } from "@/lib/utils";
 
 const props = defineProps<{
   prs: PullRequest[];
+  date: Date | null;
   startTime: string;
   endTime: string;
+  loading?: boolean;
+  error?: boolean;
 }>();
 const emit = defineEmits<{
+  "change-day": [date: Date | null];
   "play-opened-sound": [login: string];
+  "play-approved-sound": [login: string];
   "play-merged-sound": [login: string];
   "play-closed-sound": [login: string];
 }>();
 
 const now = ref(new Date());
+const displayedDate = computed(() => props.date ?? now.value);
+const isToday = computed(
+  () => displayedDate.value.toDateString() === now.value.toDateString(),
+);
+const dateLabel = computed(() =>
+  isToday.value
+    ? "Today"
+    : displayedDate.value.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+);
+
+function navigateDay(direction: -1 | 1): void {
+  if (direction === 1 && isToday.value) {
+    return;
+  }
+
+  const date = new Date(displayedDate.value);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + direction);
+  emit(
+    "change-day",
+    date.toDateString() === now.value.toDateString() ? null : date,
+  );
+}
+
 let timer: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
   timer = setInterval(() => {
@@ -28,15 +63,15 @@ onUnmounted(() => {
   }
 });
 
-function timeOnToday(time: string): Date {
+function timeOnDay(time: string): Date {
   const [hours, minutes] = time.split(":").map(Number);
-  const date = new Date(now.value);
+  const date = new Date(displayedDate.value);
   date.setHours(hours!, minutes!, 0, 0);
   return date;
 }
 
-const rangeStart = computed(() => timeOnToday(props.startTime).getTime());
-const rangeEnd = computed(() => timeOnToday(props.endTime).getTime());
+const rangeStart = computed(() => timeOnDay(props.startTime).getTime());
+const rangeEnd = computed(() => timeOnDay(props.endTime).getTime());
 
 function toPct(date: Date): number {
   return (
@@ -52,7 +87,7 @@ const hourTicks = computed(() => {
   const ticks: Date[] = [];
 
   for (let hour = 0; hour < 24; hour++) {
-    const date = new Date(now.value);
+    const date = new Date(displayedDate.value);
     date.setHours(hour, 0, 0, 0);
 
     if (date.getTime() > rangeStart.value && date.getTime() < rangeEnd.value) {
@@ -81,6 +116,7 @@ function timeLabel(date: Date): string {
 type TlEvent = {
   pct: number;
   type: "opened" | "merged" | "closed";
+  reviewStatus: ReviewStatus;
   ringClass: string;
   avatar: string;
   login: string;
@@ -100,6 +136,7 @@ const events = computed<TlEvent[]>(() => {
       raw.push({
         pct: toPct(pr.createdAt),
         type: "opened",
+        reviewStatus: pr.reviewStatus,
         ringClass:
           pr.reviewStatus === "approved"
             ? "ring-[hsl(var(--color-green))]"
@@ -119,6 +156,7 @@ const events = computed<TlEvent[]>(() => {
         raw.push({
           pct: toPct(pr.mergedAt),
           type: "merged",
+          reviewStatus: pr.reviewStatus,
           ringClass: "ring-purple-500",
           avatar: pr.author.avatar_url + "&s=48",
           login: pr.author.login,
@@ -134,6 +172,7 @@ const events = computed<TlEvent[]>(() => {
         raw.push({
           pct: toPct(pr.closedAt),
           type: "closed",
+          reviewStatus: pr.reviewStatus,
           ringClass: "ring-red-500",
           avatar: pr.author.avatar_url + "&s=48",
           login: pr.author.login,
@@ -165,6 +204,11 @@ function playEventSound(event: TlEvent): void {
     return;
   }
 
+  if (event.reviewStatus === "approved") {
+    emit("play-approved-sound", event.login);
+    return;
+  }
+
   emit("play-opened-sound", event.login);
 }
 </script>
@@ -172,94 +216,134 @@ function playEventSound(event: TlEvent): void {
 <template>
   <div
     class="relative w-full rounded-lg border border-border bg-card overflow-hidden"
-    :style="{ height: `${CONTAINER_HEIGHT}px` }"
   >
-    <!-- Today label -->
-    <span
-      class="absolute top-1.5 left-3 font-mono text-[9px] text-muted-foreground/50 select-none uppercase tracking-widest z-10"
+    <div
+      v-if="loading || error"
+      class="px-3 py-2 text-xs text-muted-foreground"
+      role="status"
     >
-      Today
-    </span>
-
-    <!-- Hourly vertical lines -->
-    <template v-for="tick in hourTicks" :key="`hour-${tick.getHours()}`">
-      <div
-        class="absolute top-0 w-px bg-muted-foreground/10 pointer-events-none"
-        :style="{
-          left: `${toPct(tick)}%`,
-          bottom: `${TRACK_BOTTOM}px`,
-        }"
-      />
-    </template>
-
-    <!-- Track line -->
+      {{
+        loading
+          ? "Loading activity…"
+          : "Some activity could not be loaded. Try selecting the day again."
+      }}
+    </div>
     <div
-      class="absolute left-0 right-0 h-px bg-border"
-      :style="{ bottom: `${TRACK_BOTTOM}px` }"
-    />
-
-    <!-- Hour ticks + labels -->
-    <template v-for="tick in hourTicks" :key="`tick-${tick.getHours()}`">
+      class="relative w-full overflow-hidden"
+      :style="{ height: `${CONTAINER_HEIGHT}px` }"
+    >
       <div
-        class="absolute w-px bg-muted-foreground/20"
-        :style="{
-          left: `${toPct(tick)}%`,
-          bottom: `${TRACK_BOTTOM - 1}px`,
-          height: '5px',
-        }"
-      />
-      <div
-        v-if="tick.getHours() % labelInterval === 0"
-        class="absolute -translate-x-1/2 font-mono text-[9px] text-muted-foreground/50 select-none"
-        :style="{ left: `${toPct(tick)}%`, bottom: '4px' }"
+        class="absolute inset-0 z-30 flex items-stretch justify-between pointer-events-none"
       >
-        {{ hourLabel(tick.getHours()) }}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          class="h-full w-6 rounded-none bg-transparent pointer-events-auto"
+          aria-label="Previous day"
+          title="Previous day"
+          @click="navigateDay(-1)"
+        >
+          <ChevronLeft class="h-4 w-4" aria-hidden="true" />
+        </Button>
+        <span
+          class="absolute top-1 left-7 rounded bg-card px-1 font-mono text-[9px] text-muted-foreground"
+          aria-live="polite"
+          >{{ dateLabel }}</span
+        >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          class="h-full w-6 rounded-none bg-transparent pointer-events-auto"
+          aria-label="Next day"
+          title="Next day"
+          :disabled="isToday"
+          @click="navigateDay(1)"
+        >
+          <ChevronRight class="h-4 w-4" aria-hidden="true" />
+        </Button>
       </div>
-    </template>
+      <!-- Hourly vertical lines -->
+      <template v-for="tick in hourTicks" :key="`hour-${tick.getHours()}`">
+        <div
+          class="absolute top-0 w-px bg-muted-foreground/10 pointer-events-none"
+          :style="{
+            left: `${toPct(tick)}%`,
+            bottom: `${TRACK_BOTTOM}px`,
+          }"
+        />
+      </template>
 
-    <!-- Current time line -->
-    <div
-      v-if="nowVisible"
-      class="absolute top-0 bottom-0 w-px bg-foreground pointer-events-none z-10"
-      :style="{ left: `${nowPct}%` }"
-    />
-    <!-- Now dot -->
-    <div
-      v-if="nowVisible"
-      class="absolute w-1.5 h-1.5 rounded-full bg-foreground -translate-x-1/2 z-10"
-      :style="{ left: `${nowPct}%`, top: '0' }"
-    />
-
-    <!-- Avatars -->
-    <template v-for="(ev, i) in events" :key="i">
+      <!-- Track line -->
       <div
-        class="absolute -translate-x-1/2 cursor-default z-20"
-        :style="{
-          left: `${ev.pct}%`,
-          bottom: `${TRACK_BOTTOM + 3 + ev.row * ROW_HEIGHT}px`,
-        }"
-      >
-        <Tooltip :text="ev.tooltip">
-          <button
-            type="button"
-            :class="
-              cn(
-                'rounded-full overflow-hidden ring-2 ring-offset-1 ring-offset-card',
-                ev.ringClass,
-              )
-            "
-            :style="{ width: `${AVATAR_SIZE}px`, height: `${AVATAR_SIZE}px` }"
-            @click="playEventSound(ev)"
-          >
-            <img
-              :src="ev.avatar"
-              :alt="ev.login"
-              loading="lazy"
-              class="h-full w-full object-cover"
-            />
-          </button>
-        </Tooltip>
-      </div>
-    </template>
+        class="absolute left-0 right-0 h-px bg-border"
+        :style="{ bottom: `${TRACK_BOTTOM}px` }"
+      />
+
+      <!-- Hour ticks + labels -->
+      <template v-for="tick in hourTicks" :key="`tick-${tick.getHours()}`">
+        <div
+          class="absolute w-px bg-muted-foreground/20"
+          :style="{
+            left: `${toPct(tick)}%`,
+            bottom: `${TRACK_BOTTOM - 1}px`,
+            height: '5px',
+          }"
+        />
+        <div
+          v-if="tick.getHours() % labelInterval === 0"
+          class="absolute -translate-x-1/2 font-mono text-[9px] text-muted-foreground/50 select-none"
+          :style="{ left: `${toPct(tick)}%`, bottom: '4px' }"
+        >
+          {{ hourLabel(tick.getHours()) }}
+        </div>
+      </template>
+
+      <!-- Current time line -->
+      <div
+        v-if="nowVisible"
+        class="absolute top-0 bottom-0 w-px bg-foreground pointer-events-none z-10"
+        :style="{ left: `${nowPct}%` }"
+      />
+      <!-- Now dot -->
+      <div
+        v-if="nowVisible"
+        class="absolute w-1.5 h-1.5 rounded-full bg-foreground -translate-x-1/2 z-10"
+        :style="{ left: `${nowPct}%`, top: '0' }"
+      />
+
+      <!-- Avatars -->
+      <template v-for="(ev, i) in events" :key="i">
+        <div
+          class="absolute -translate-x-1/2 cursor-default z-20"
+          :style="{
+            left: `${ev.pct}%`,
+            bottom: `${TRACK_BOTTOM + 3 + ev.row * ROW_HEIGHT}px`,
+          }"
+        >
+          <Tooltip :text="ev.tooltip">
+            <button
+              type="button"
+              :class="
+                cn(
+                  'rounded-full overflow-hidden ring-2 ring-offset-1 ring-offset-card',
+                  ev.ringClass,
+                )
+              "
+              :style="{ width: `${AVATAR_SIZE}px`, height: `${AVATAR_SIZE}px` }"
+              @click="playEventSound(ev)"
+            >
+              <img
+                :src="ev.avatar"
+                :alt="ev.login"
+                loading="lazy"
+                class="h-full w-full object-cover"
+              />
+            </button>
+          </Tooltip>
+        </div>
+      </template>
+    </div>
   </div>
 </template>

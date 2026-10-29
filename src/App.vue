@@ -251,6 +251,46 @@ const allPRs = computed<PullRequest[]>(() =>
     .flat(),
 );
 
+const timelineDate = ref<Date | null>(null);
+const timelineHistory = ref<PullRequest[]>([]);
+const timelineLoading = ref(false);
+const timelineError = ref(false);
+
+watch(
+  [timelineDate, repoList, tokenComputed, compiledTitleFilter],
+  async ([date], _, onCleanup) => {
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
+    timelineHistory.value = [];
+    timelineError.value = false;
+    timelineLoading.value = date !== null;
+
+    if (!date) {
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      repoList.value.map((repo) =>
+        fetchRepo(repo, Date.now() - date.getTime() + 1),
+      ),
+    );
+
+    if (cancelled) {
+      return;
+    }
+
+    timelineHistory.value = results.flatMap((result) =>
+      result.status === "fulfilled" ? result.value : [],
+    );
+    timelineError.value = results.some(
+      (result) => result.status === "rejected",
+    );
+    timelineLoading.value = false;
+  },
+);
+
 const repoOptions = computed<string[]>(() =>
   repoList.value.filter((r) => Array.isArray(prData.value[r])),
 );
@@ -1261,10 +1301,15 @@ onMounted(async () => {
         <!-- Day timeline -->
         <DayTimeline
           v-if="timelineSettings.enabled"
+          :date="timelineDate"
           :start-time="timelineSettings.startTime"
           :end-time="timelineSettings.endTime"
-          :prs="allPRs"
+          :prs="timelineDate ? timelineHistory : allPRs"
+          :loading="timelineLoading"
+          :error="timelineError"
+          @change-day="timelineDate = $event"
           @play-opened-sound="playNewPR"
+          @play-approved-sound="playApproved"
           @play-merged-sound="playMerged"
           @play-closed-sound="playClosed"
         />
