@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import type { PullRequest } from "@/types";
 import Tooltip from "@/components/ui/Tooltip.vue";
+import { cn } from "@/lib/utils";
 
 const props = defineProps<{
   prs: PullRequest[];
@@ -80,6 +81,7 @@ function timeLabel(date: Date): string {
 type TlEvent = {
   pct: number;
   type: "opened" | "merged" | "closed";
+  ringClass: string;
   avatar: string;
   login: string;
   tooltip: string;
@@ -98,6 +100,12 @@ const events = computed<TlEvent[]>(() => {
       raw.push({
         pct: toPct(pr.createdAt),
         type: "opened",
+        ringClass:
+          pr.reviewStatus === "approved"
+            ? "ring-[hsl(var(--color-green))]"
+            : pr.reviewStatus === "changes"
+              ? "ring-[hsl(var(--color-orange))]"
+              : "ring-blue-500",
         avatar: pr.author.avatar_url + "&s=48",
         login: pr.author.login,
         tooltip: `${pr.repo}#${pr.number} opened by ${pr.author.login} at ${timeLabel(pr.createdAt)}`,
@@ -111,6 +119,7 @@ const events = computed<TlEvent[]>(() => {
         raw.push({
           pct: toPct(pr.mergedAt),
           type: "merged",
+          ringClass: "ring-purple-500",
           avatar: pr.author.avatar_url + "&s=48",
           login: pr.author.login,
           tooltip: `${pr.repo}#${pr.number} merged by ${pr.author.login} at ${timeLabel(pr.mergedAt)}`,
@@ -125,6 +134,7 @@ const events = computed<TlEvent[]>(() => {
         raw.push({
           pct: toPct(pr.closedAt),
           type: "closed",
+          ringClass: "ring-red-500",
           avatar: pr.author.avatar_url + "&s=48",
           login: pr.author.login,
           tooltip: `${pr.repo}#${pr.number} closed by ${pr.author.login} at ${timeLabel(pr.closedAt)}`,
@@ -232,13 +242,11 @@ function playEventSound(event: TlEvent): void {
         <Tooltip :text="ev.tooltip">
           <button
             type="button"
-            class="rounded-full overflow-hidden ring-2 ring-offset-1 ring-offset-card"
             :class="
-              ev.type === 'opened'
-                ? 'ring-blue-500'
-                : ev.type === 'closed'
-                  ? 'ring-red-500'
-                  : 'ring-purple-500'
+              cn(
+                'rounded-full overflow-hidden ring-2 ring-offset-1 ring-offset-card',
+                ev.ringClass,
+              )
             "
             :style="{ width: `${AVATAR_SIZE}px`, height: `${AVATAR_SIZE}px` }"
             @click="playEventSound(ev)"
