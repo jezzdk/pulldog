@@ -183,8 +183,11 @@ const {
   prSoundEnabled,
   mergeSoundEnabled,
   closeSoundEnabled,
+  changesTtsEnabled,
   approvalTtsEnabled,
+  changesSoundEnabled,
   approvalSoundEnabled,
+  customChangesSoundEnabled,
   customApprovalSoundEnabled,
   customSoundEnabled,
   customPrSoundEnabled,
@@ -193,6 +196,7 @@ const {
   playNewPR,
   playMerged,
   playClosed,
+  playChanges,
   playApproved,
   playTestSound,
   playDefaultNewPR,
@@ -209,6 +213,10 @@ function playMergedTest(author: string): void {
   if (confettiEnabled.value) {
     fireConfetti();
   }
+}
+
+function playChangesTest(author: string): void {
+  void playTestSound("changes", author);
 }
 
 function playApprovedTest(author: string): void {
@@ -675,10 +683,12 @@ async function loadAll(isRefresh = false): Promise<void> {
   let shouldPlayDing = false;
   let shouldPlayGong = false;
   let shouldPlayClosed = false;
+  let shouldPlayChanges = false;
   let shouldPlayApproved = false;
   let newPrAuthorName = "";
   let mergedAuthorName = "";
   let closedAuthorName = "";
+  let changesAuthorName = "";
   let approvedAuthorName = "";
 
   for (let i = 0; i < results.length; i++) {
@@ -754,6 +764,16 @@ async function loadAll(isRefresh = false): Promise<void> {
             );
           } else if (
             prevStatus !== undefined &&
+            prevStatus !== "changes" &&
+            p.reviewStatus === "changes"
+          ) {
+            if (!shouldPlayChanges) {
+              changesAuthorName = p.author.login;
+            }
+
+            shouldPlayChanges = true;
+          } else if (
+            prevStatus !== undefined &&
             prevStatus !== "approved" &&
             p.reviewStatus === "approved"
           ) {
@@ -787,6 +807,8 @@ async function loadAll(isRefresh = false): Promise<void> {
     void playNewPR(newPrAuthorName);
   } else if (shouldPlayClosed) {
     void playClosed(closedAuthorName);
+  } else if (shouldPlayChanges) {
+    void playChanges(changesAuthorName);
   } else if (shouldPlayApproved) {
     void playApproved(approvedAuthorName);
   }
@@ -957,6 +979,9 @@ function handleSaveSettings(
   newApprovalSoundEnabled?: boolean,
   newCustomApprovalSoundEnabled?: boolean,
   newApprovalTtsEnabled?: boolean,
+  newChangesSoundEnabled?: boolean,
+  newCustomChangesSoundEnabled?: boolean,
+  newChangesTtsEnabled?: boolean,
 ): void {
   showSettings.value = false;
 
@@ -1048,6 +1073,14 @@ function handleSaveSettings(
     );
   }
 
+  if (newChangesTtsEnabled !== undefined) {
+    changesTtsEnabled.value = newChangesTtsEnabled;
+    localStorage.setItem(
+      "pulldog-changes-tts-enabled",
+      String(newChangesTtsEnabled),
+    );
+  }
+
   if (newApprovalTtsEnabled !== undefined) {
     approvalTtsEnabled.value = newApprovalTtsEnabled;
     localStorage.setItem(
@@ -1056,11 +1089,27 @@ function handleSaveSettings(
     );
   }
 
+  if (newChangesSoundEnabled !== undefined) {
+    changesSoundEnabled.value = newChangesSoundEnabled;
+    localStorage.setItem(
+      "pulldog-changes-sound-enabled",
+      String(newChangesSoundEnabled),
+    );
+  }
+
   if (newApprovalSoundEnabled !== undefined) {
     approvalSoundEnabled.value = newApprovalSoundEnabled;
     localStorage.setItem(
       "pulldog-approval-sound-enabled",
       String(newApprovalSoundEnabled),
+    );
+  }
+
+  if (newCustomChangesSoundEnabled !== undefined) {
+    customChangesSoundEnabled.value = newCustomChangesSoundEnabled;
+    localStorage.setItem(
+      "pulldog-custom-changes-sound-enabled",
+      String(newCustomChangesSoundEnabled),
     );
   }
 
@@ -1219,6 +1268,7 @@ onMounted(async () => {
       :on-test-new-pr="playNewPRTest"
       :on-test-merged="playMergedTest"
       :on-test-closed="playClosedTest"
+      :on-test-changes="playChangesTest"
       :on-test-approved="playApprovedTest"
       @refresh="refreshAll"
       @toggle-sound="toggleSound"
@@ -1308,10 +1358,11 @@ onMounted(async () => {
           :loading="timelineLoading"
           :error="timelineError"
           @change-day="timelineDate = $event"
-          @play-opened-sound="playNewPR"
-          @play-approved-sound="playApproved"
-          @play-merged-sound="playMerged"
-          @play-closed-sound="playClosed"
+          @play-opened-sound="playTestSound('open', $event)"
+          @play-changes-sound="playTestSound('changes', $event)"
+          @play-approved-sound="playTestSound('approved', $event)"
+          @play-merged-sound="playTestSound('merged', $event)"
+          @play-closed-sound="playTestSound('closed', $event)"
         />
 
         <!-- Unified PR table -->
@@ -1440,8 +1491,11 @@ onMounted(async () => {
       :current-pr-sound-enabled="prSoundEnabled"
       :current-merge-sound-enabled="mergeSoundEnabled"
       :current-close-sound-enabled="closeSoundEnabled"
+      :current-changes-tts-enabled="changesTtsEnabled"
       :current-approval-tts-enabled="approvalTtsEnabled"
+      :current-changes-sound-enabled="changesSoundEnabled"
       :current-approval-sound-enabled="approvalSoundEnabled"
+      :current-custom-changes-sound-enabled="customChangesSoundEnabled"
       :current-custom-approval-sound-enabled="customApprovalSoundEnabled"
       :current-custom-sound-enabled="customSoundEnabled"
       :current-custom-pr-sound-enabled="customPrSoundEnabled"

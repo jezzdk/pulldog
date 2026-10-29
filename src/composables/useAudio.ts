@@ -3,10 +3,11 @@ import { ref, type Ref } from "vue";
 import { useOpenAI } from "./useOpenAI";
 import openPrUrl from "@/assets/open_pr.mp3?url";
 import mergedPrUrl from "@/assets/merged_pr.mp3?url";
+import changesPrUrl from "@/assets/changes_pr.mp3?url";
 import approvedPrUrl from "@/assets/approved_pr.mp3?url";
 import closedPrUrl from "@/assets/closed_pr.mp3?url";
 
-type SoundEvent = "open" | "approved" | "merged" | "closed";
+type SoundEvent = "open" | "changes" | "approved" | "merged" | "closed";
 
 interface UseAudioReturn {
   playTestSound: (event: SoundEvent, authorName: string) => Promise<void>;
@@ -17,8 +18,11 @@ interface UseAudioReturn {
   prSoundEnabled: Ref<boolean>;
   mergeSoundEnabled: Ref<boolean>;
   closeSoundEnabled: Ref<boolean>;
+  changesTtsEnabled: Ref<boolean>;
   approvalTtsEnabled: Ref<boolean>;
+  changesSoundEnabled: Ref<boolean>;
   approvalSoundEnabled: Ref<boolean>;
+  customChangesSoundEnabled: Ref<boolean>;
   customApprovalSoundEnabled: Ref<boolean>;
   customSoundEnabled: Ref<boolean>;
   customPrSoundEnabled: Ref<boolean>;
@@ -28,8 +32,11 @@ interface UseAudioReturn {
   togglePrTts: () => void;
   togglePrSound: () => void;
   toggleMergeSound: () => void;
+  toggleChangesTts: () => void;
   toggleApprovalTts: () => void;
+  toggleChangesSound: () => void;
   toggleApprovalSound: () => void;
+  toggleCustomChangesSound: () => void;
   toggleCustomApprovalSound: () => void;
   toggleCloseSound: () => void;
   toggleCustomSound: () => void;
@@ -38,8 +45,10 @@ interface UseAudioReturn {
   playNewPR: (authorName: string) => Promise<void>;
   playMerged: (authorName: string) => Promise<void>;
   playClosed: (authorName: string) => Promise<void>;
+  playChanges: (authorName: string) => Promise<void>;
   playApproved: (authorName: string) => Promise<void>;
   playDefaultNewPR: () => Promise<void>;
+  playDefaultChangesPR: () => Promise<void>;
   playDefaultApprovedPR: () => Promise<void>;
   playDefaultMerged: () => Promise<void>;
   playDefaultClosed: () => Promise<void>;
@@ -49,14 +58,17 @@ const STORAGE_KEY = "pulldog-sound";
 const TTS_STORAGE_KEY = "pulldog-tts-enabled";
 const CLOSE_TTS_KEY = "pulldog-close-tts-enabled";
 const PR_TTS_KEY = "pulldog-pr-tts-enabled";
+const CHANGES_TTS_KEY = "pulldog-changes-tts-enabled";
 const APPROVAL_TTS_KEY = "pulldog-approval-tts-enabled";
 const PR_SOUND_KEY = "pulldog-pr-sound-enabled";
 const MERGE_SOUND_KEY = "pulldog-merge-sound-enabled";
 const CLOSE_SOUND_KEY = "pulldog-close-sound-enabled";
+const CHANGES_SOUND_KEY = "pulldog-changes-sound-enabled";
 const APPROVAL_SOUND_KEY = "pulldog-approval-sound-enabled";
 const CUSTOM_SOUND_KEY = "pulldog-custom-sound-enabled";
 const CUSTOM_PR_SOUND_KEY = "pulldog-custom-pr-sound-enabled";
 const CUSTOM_CLOSE_PR_SOUND_KEY = "pulldog-custom-close-pr-sound-enabled";
+const CUSTOM_CHANGES_SOUND_KEY = "pulldog-custom-changes-sound-enabled";
 const CUSTOM_APPROVAL_SOUND_KEY = "pulldog-custom-approval-sound-enabled";
 /** Max playback length for per-author custom MP3s (built-in sounds play full length). */
 const CUSTOM_SOUND_MAX_SEC = 10;
@@ -66,6 +78,9 @@ export function useAudio(): UseAudioReturn {
   const ttsEnabled = ref(localStorage.getItem(TTS_STORAGE_KEY) === "true");
   const prTtsEnabled = ref(localStorage.getItem(PR_TTS_KEY) === "true");
   const closeTtsEnabled = ref(localStorage.getItem(CLOSE_TTS_KEY) === "true");
+  const changesTtsEnabled = ref(
+    localStorage.getItem(CHANGES_TTS_KEY) === "true",
+  );
   const approvalTtsEnabled = ref(
     localStorage.getItem(APPROVAL_TTS_KEY) === "true",
   );
@@ -75,6 +90,9 @@ export function useAudio(): UseAudioReturn {
   );
   const closeSoundEnabled = ref(
     localStorage.getItem(CLOSE_SOUND_KEY) !== "false",
+  );
+  const changesSoundEnabled = ref(
+    localStorage.getItem(CHANGES_SOUND_KEY) !== "false",
   );
   const approvalSoundEnabled = ref(
     localStorage.getItem(APPROVAL_SOUND_KEY) !== "false",
@@ -87,6 +105,9 @@ export function useAudio(): UseAudioReturn {
   );
   const customClosePrSoundEnabled = ref(
     localStorage.getItem(CUSTOM_CLOSE_PR_SOUND_KEY) === "true",
+  );
+  const customChangesSoundEnabled = ref(
+    localStorage.getItem(CUSTOM_CHANGES_SOUND_KEY) === "true",
   );
   const customApprovalSoundEnabled = ref(
     localStorage.getItem(CUSTOM_APPROVAL_SOUND_KEY) === "true",
@@ -133,6 +154,7 @@ export function useAudio(): UseAudioReturn {
 
     const defaultUrl = {
       open: openPrUrl,
+      changes: changesPrUrl,
       approved: approvedPrUrl,
       merged: mergedPrUrl,
       closed: closedPrUrl,
@@ -158,6 +180,10 @@ export function useAudio(): UseAudioReturn {
     return playDefaultSound(openPrUrl);
   }
 
+  function playDefaultChangesPR(): Promise<void> {
+    return playDefaultSound(changesPrUrl);
+  }
+
   function playDefaultApprovedPR(): Promise<void> {
     return playDefaultSound(approvedPrUrl);
   }
@@ -180,6 +206,44 @@ export function useAudio(): UseAudioReturn {
     }
 
     return audioCtx;
+  }
+
+  async function playChanges(authorName: string): Promise<void> {
+    if (!soundEnabled.value) {
+      return;
+    }
+
+    if (changesSoundEnabled.value) {
+      try {
+        const customUrl =
+          customChangesSoundEnabled.value && authorName
+            ? `https://raw.githubusercontent.com/${authorName}/pulldog-sounds/main/pr_changes.mp3`
+            : null;
+        const buffer = customUrl
+          ? await loadBuffer(customUrl).catch(() => loadBuffer(changesPrUrl))
+          : await loadBuffer(changesPrUrl);
+        playBuffer(buffer, customUrl ? CUSTOM_SOUND_MAX_SEC : undefined);
+      } catch (_) {
+        /* changes sound unavailable */
+      }
+    }
+
+    if (!changesTtsEnabled.value) {
+      return;
+    }
+
+    try {
+      const { textToSpeech } = useOpenAI();
+      const voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+      const voice = voices[Math.floor(Math.random() * voices.length)]!;
+      const audioBuffer = await textToSpeech(
+        `Changes were requested on a pull request by ${authorName}`,
+        voice,
+      );
+      playBuffer(await ctx().decodeAudioData(audioBuffer));
+    } catch (_) {
+      /* TTS not available */
+    }
   }
 
   async function playApproved(authorName: string): Promise<void> {
@@ -406,9 +470,19 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(MERGE_SOUND_KEY, String(mergeSoundEnabled.value));
   }
 
+  function toggleChangesTts(): void {
+    changesTtsEnabled.value = !changesTtsEnabled.value;
+    localStorage.setItem(CHANGES_TTS_KEY, String(changesTtsEnabled.value));
+  }
+
   function toggleApprovalTts(): void {
     approvalTtsEnabled.value = !approvalTtsEnabled.value;
     localStorage.setItem(APPROVAL_TTS_KEY, String(approvalTtsEnabled.value));
+  }
+
+  function toggleChangesSound(): void {
+    changesSoundEnabled.value = !changesSoundEnabled.value;
+    localStorage.setItem(CHANGES_SOUND_KEY, String(changesSoundEnabled.value));
   }
 
   function toggleApprovalSound(): void {
@@ -416,6 +490,14 @@ export function useAudio(): UseAudioReturn {
     localStorage.setItem(
       APPROVAL_SOUND_KEY,
       String(approvalSoundEnabled.value),
+    );
+  }
+
+  function toggleCustomChangesSound(): void {
+    customChangesSoundEnabled.value = !customChangesSoundEnabled.value;
+    localStorage.setItem(
+      CUSTOM_CHANGES_SOUND_KEY,
+      String(customChangesSoundEnabled.value),
     );
   }
 
@@ -477,8 +559,11 @@ export function useAudio(): UseAudioReturn {
     prSoundEnabled,
     mergeSoundEnabled,
     closeSoundEnabled,
+    changesTtsEnabled,
     approvalTtsEnabled,
+    changesSoundEnabled,
     approvalSoundEnabled,
+    customChangesSoundEnabled,
     customApprovalSoundEnabled,
     customSoundEnabled,
     customPrSoundEnabled,
@@ -488,8 +573,11 @@ export function useAudio(): UseAudioReturn {
     togglePrTts,
     togglePrSound,
     toggleMergeSound,
+    toggleChangesTts,
     toggleApprovalTts,
+    toggleChangesSound,
     toggleApprovalSound,
+    toggleCustomChangesSound,
     toggleCustomApprovalSound,
     toggleCloseSound,
     toggleCustomSound,
@@ -498,8 +586,10 @@ export function useAudio(): UseAudioReturn {
     playNewPR,
     playMerged,
     playClosed,
+    playChanges,
     playApproved,
     playDefaultNewPR,
+    playDefaultChangesPR,
     playDefaultApprovedPR,
     playDefaultMerged,
     playDefaultClosed,

@@ -58,8 +58,11 @@ const props = defineProps<{
   currentPrSoundEnabled: boolean;
   currentMergeSoundEnabled: boolean;
   currentCloseSoundEnabled: boolean;
+  currentChangesTtsEnabled: boolean;
   currentApprovalTtsEnabled: boolean;
+  currentChangesSoundEnabled: boolean;
   currentApprovalSoundEnabled: boolean;
+  currentCustomChangesSoundEnabled: boolean;
   currentCustomApprovalSoundEnabled: boolean;
   currentCustomSoundEnabled: boolean;
   currentCustomPrSoundEnabled: boolean;
@@ -94,6 +97,9 @@ const emit = defineEmits<{
     approvalSoundEnabled?: boolean,
     customApprovalSoundEnabled?: boolean,
     approvalTtsEnabled?: boolean,
+    changesSoundEnabled?: boolean,
+    customChangesSoundEnabled?: boolean,
+    changesTtsEnabled?: boolean,
   ];
 }>();
 
@@ -132,8 +138,13 @@ const prTtsEnabledInput = ref(props.currentPrTtsEnabled);
 const closeTtsEnabledInput = ref(props.currentCloseTtsEnabled);
 const prSoundEnabledInput = ref(props.currentPrSoundEnabled);
 const mergeSoundEnabledInput = ref(props.currentMergeSoundEnabled);
+const changesTtsEnabledInput = ref(props.currentChangesTtsEnabled);
 const approvalTtsEnabledInput = ref(props.currentApprovalTtsEnabled);
+const changesSoundEnabledInput = ref(props.currentChangesSoundEnabled);
 const approvalSoundEnabledInput = ref(props.currentApprovalSoundEnabled);
+const customChangesSoundEnabledInput = ref(
+  props.currentCustomChangesSoundEnabled,
+);
 const customApprovalSoundEnabledInput = ref(
   props.currentCustomApprovalSoundEnabled,
 );
@@ -169,8 +180,12 @@ watch(
       prSoundEnabledInput.value = props.currentPrSoundEnabled;
       mergeSoundEnabledInput.value = props.currentMergeSoundEnabled;
       closeSoundEnabledInput.value = props.currentCloseSoundEnabled;
+      changesTtsEnabledInput.value = props.currentChangesTtsEnabled;
       approvalTtsEnabledInput.value = props.currentApprovalTtsEnabled;
+      changesSoundEnabledInput.value = props.currentChangesSoundEnabled;
       approvalSoundEnabledInput.value = props.currentApprovalSoundEnabled;
+      customChangesSoundEnabledInput.value =
+        props.currentCustomChangesSoundEnabled;
       customApprovalSoundEnabledInput.value =
         props.currentCustomApprovalSoundEnabled;
       customSoundEnabledInput.value = props.currentCustomSoundEnabled;
@@ -202,9 +217,19 @@ watch(customSoundEnabledInput, (v) => {
   }
 });
 
+watch(changesTtsEnabledInput, (enabled) => {
+  if (enabled) {
+    customChangesSoundEnabledInput.value = false;
+  }
+});
 watch(approvalTtsEnabledInput, (enabled) => {
   if (enabled) {
     customApprovalSoundEnabledInput.value = false;
+  }
+});
+watch(customChangesSoundEnabledInput, (enabled) => {
+  if (enabled) {
+    changesTtsEnabledInput.value = false;
   }
 });
 watch(customApprovalSoundEnabledInput, (enabled) => {
@@ -271,6 +296,9 @@ function handleSave(): void {
     approvalSoundEnabledInput.value,
     customApprovalSoundEnabledInput.value,
     approvalTtsEnabledInput.value,
+    changesSoundEnabledInput.value,
+    customChangesSoundEnabledInput.value,
+    changesTtsEnabledInput.value,
   );
 }
 </script>
@@ -483,7 +511,7 @@ function handleSave(): void {
                   <div class="flex items-center gap-1.5">
                     <Label>Hide Drafts</Label>
                     <Tooltip
-                      text='Hide draft PRs when the "All" filter is active.'
+                      text="Hide draft PRs when the &quot;All&quot; filter is active."
                       :delay="300"
                     >
                       <Info class="h-3 w-3 cursor-help text-muted-foreground" />
@@ -497,7 +525,7 @@ function handleSave(): void {
                   <div class="flex items-center gap-1.5">
                     <Label>Hide Merged</Label>
                     <Tooltip
-                      text='Hide merged PRs when the "All" filter is active.'
+                      text="Hide merged PRs when the &quot;All&quot; filter is active."
                       :delay="300"
                     >
                       <Info class="h-3 w-3 cursor-help text-muted-foreground" />
@@ -511,7 +539,7 @@ function handleSave(): void {
                   <div class="flex items-center gap-1.5">
                     <Label>Hide Closed</Label>
                     <Tooltip
-                      text='Hide closed (not merged) PRs when the "All" filter is active.'
+                      text="Hide closed (not merged) PRs when the &quot;All&quot; filter is active."
                       :delay="300"
                     >
                       <Info class="h-3 w-3 cursor-help text-muted-foreground" />
@@ -610,6 +638,62 @@ function handleSave(): void {
 
               <div class="space-y-2">
                 <p class="font-mono text-[10px] text-muted-foreground">
+                  Changes requested
+                </p>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="changes-sound-enabled">Sound</Label>
+                    <Tooltip
+                      text="Play a sound when changes are requested on a PR on refresh."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="changes-sound-enabled"
+                    v-model="changesSoundEnabledInput"
+                    size="sm"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="changes-tts-enabled">Voice</Label>
+                    <Tooltip
+                      text="Speak an announcement when changes are requested on a PR. Requires sound and an OpenAI API key."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="changes-tts-enabled"
+                    v-model="changesTtsEnabledInput"
+                    size="sm"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5">
+                    <Label for="custom-changes-sound-enabled"
+                      >Custom sound</Label
+                    >
+                    <Tooltip
+                      text="Looks for pr_changes.mp3 in the PR author's pulldog-sounds repo. Falls back to the built-in sound."
+                      :delay="300"
+                    >
+                      <Info class="h-3 w-3 cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="custom-changes-sound-enabled"
+                    v-model="customChangesSoundEnabledInput"
+                    size="sm"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <p class="font-mono text-[10px] text-muted-foreground">
                   Approved
                 </p>
                 <div class="flex items-center justify-between gap-3">
@@ -666,7 +750,9 @@ function handleSave(): void {
 
               <!-- Merge -->
               <div class="space-y-2">
-                <p class="font-mono text-[10px] text-muted-foreground">Merged</p>
+                <p class="font-mono text-[10px] text-muted-foreground">
+                  Merged
+                </p>
                 <div class="flex items-center justify-between gap-3">
                   <div class="flex items-center gap-1.5">
                     <Label>Sound</Label>

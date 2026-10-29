@@ -35,6 +35,7 @@ defineProps<{
   onTestNewPr: (author: string) => void;
   onTestMerged: (author: string) => void;
   onTestClosed: (author: string) => void;
+  onTestChanges: (author: string) => void;
   onTestApproved: (author: string) => void;
 }>();
 
@@ -190,6 +191,15 @@ const { isFullscreen, isSupported, toggle: toggleFullscreen } = useFullscreen();
       @click="onTestClosed(testUsername)"
     >
       🚫 closed
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-6 px-2 font-mono text-[10px]"
+      :disabled="!soundEnabled"
+      @click="onTestChanges(testUsername)"
+    >
+      ✏️ changes
     </Button>
     <Button
       variant="outline"

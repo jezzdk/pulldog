@@ -17,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   "change-day": [date: Date | null];
   "play-opened-sound": [login: string];
+  "play-changes-sound": [login: string];
   "play-approved-sound": [login: string];
   "play-merged-sound": [login: string];
   "play-closed-sound": [login: string];
@@ -201,6 +202,11 @@ function playEventSound(event: TlEvent): void {
 
   if (event.type === "closed") {
     emit("play-closed-sound", event.login);
+    return;
+  }
+
+  if (event.reviewStatus === "changes") {
+    emit("play-changes-sound", event.login);
     return;
   }
 

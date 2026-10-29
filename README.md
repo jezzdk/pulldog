@@ -16,8 +16,8 @@
 - **SLA tracking** — configurable warning and breach thresholds; rows highlight amber/red as PRs age past them
 - **Comment heat** — shows comment count per PR with a 🔥 when it crosses a configurable threshold
 - **Granular notifications** — independently toggle new PR sound, merge sound, close sound, merge confetti, and voice announcements
-- **Custom per-author sounds** — optionally load `pr_open.mp3` / `pr_approved.mp3` / `pr_merged.mp3` / `pr_closed.mp3` from each author's `pulldog-sounds` GitHub repo
-- **Voice announcements (optional)** — OpenAI-powered TTS for new, approved, merged, and closed PR events; bring your own key via Settings, or set it in the environment
+- **Custom per-author sounds** — optionally load `pr_open.mp3` / `pr_changes.mp3` / `pr_approved.mp3` / `pr_merged.mp3` / `pr_closed.mp3` from each author's `pulldog-sounds` GitHub repo
+- **Voice announcements (optional)** — OpenAI-powered TTS for new, changes-requested, approved, merged, and closed PR events; bring your own key via Settings, or set it in the environment
 - **7-day summary bar** — total open PRs, PRs opened, PRs merged, average lead time, and merge rate
 - **Light / dark / system theme** — persisted to `localStorage`, respects OS preference in system mode
 - **Auto-refresh** — configurable poll interval (15s to 30m, default 1 minute); detects new, merged, and closed PRs and triggers notifications
@@ -183,6 +183,7 @@ When enabled, it looks for files in:
 
 For each author you want custom sounds for, create a **public** repo named `pulldog-sounds` under that same GitHub account, then add:
 
+- `pr_changes.mp3` (played when a tracked PR changes to changes requested)
 - `pr_approved.mp3` (played when a tracked PR changes to approved)
 - `pr_open.mp3` (played on new PR)
 - `pr_merged.mp3` (played on merge)
@@ -193,6 +194,7 @@ For each author you want custom sounds for, create a **public** repo named `pull
 Open **Settings → Notifications** and turn on:
 
 - **New PR → Custom sound**
+- **Changes requested → Custom sound**
 - **Approved → Custom sound**
 - **Merge → Custom sound**
 - **Closed → Custom sound**
